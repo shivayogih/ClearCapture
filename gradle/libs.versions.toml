@@ -18,7 +18,7 @@ foojay = "1.0.0"
 # Libraries
 composeBom = "2026.09.00"
 camerax = "1.6.2"
-opencv = "4.14.0"
+opencv = "5.1.0"
 opencvDesktop = "4.9.0-0"
 hilt = "2.60.1"
 coroutines = "1.11.0"
