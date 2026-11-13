@@ -2,6 +2,7 @@ plugins {
     id("clearcapture.android.library")
     id("clearcapture.android.compose")
     id("clearcapture.test")
+    alias(libs.plugins.kotlin.parcelize)
 }
 
 dependencies {
@@ -14,4 +15,11 @@ dependencies {
     implementation(project(":core:location"))
     implementation(project(":core:common"))
     implementation(project(":designsystem"))
+
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.kotlinx.coroutines.android)
+
+    testImplementation(testFixtures(project(":capture:domain")))
+    testImplementation(libs.robolectric)
 }
