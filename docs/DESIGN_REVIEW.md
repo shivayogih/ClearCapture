@@ -1,0 +1,62 @@
+# ClearCapture SDK: Design Review
+
+| | |
+|---|---|
+| Reviewed | `HLD.md` (revision 3), `LLD.md` (revision 3), `SDK_REQUIREMENTS.md` (revision 1), `DESIGN_SYSTEM.md` (revision 1), against `VERSIONS.md` |
+| Result | `HLD.md` revision 4, `LLD.md` revision 4, `SDK_REQUIREMENTS.md` revision 2, `DESIGN_SYSTEM.md` revision 2 |
+| Date | 13 November 2026 |
+
+The four design documents were read against each other and against the resolved versions before any SDK code was written. Each finding below is a place where the documents disagreed, left a rule undefined, or described something that cannot be built as written. The project owner approved every change, and each has been applied to the documents so that they now say the same thing. Findings 1 to 24 are the owner's decisions; 25 to 33 are further inconsistencies found while applying them, each fixed with the smallest consistent change.
+
+Severity: **blocker** = the code could not be written correctly without it; **should fix** = would cause rework or a wrong behaviour; **note** = wording or reference only.
+
+## Findings
+
+| # | Severity | Location | Problem | Change made | Status |
+|---|---|---|---|---|---|
+| 1 | should fix | HLD 3.1; SDK_REQUIREMENTS 10; DESIGN_SYSTEM intro; LLD 15 | HLD 3.1 said screens use the host's `MaterialTheme`, while HLD 3.2 and the other documents said the SDK has its own theme | The SDK always uses `ClearCaptureTheme` and never the host's `MaterialTheme`; stated in all four documents | Approved, applied |
+| 2 | blocker | LLD 1, 2, 3, 3.2, 4.2, 4.4; HLD 3, 3.1 | `AcceptCaptureUseCase` returned `CaptureResult.Accepted` and `ReviewEffect.Finish` carried `CaptureResult`, so the domain and UI depended on `:capture:api`, which depends on them | Domain `AcceptedCapture`, `FailureCode` and `FlowOutcome` (Accepted / Cancelled / Failed) added; the use case and `Finish` use them; `:capture:api` maps `FlowOutcome` to `CaptureResult` | Approved, applied |
+| 3 | should fix | HLD 3 (diagram, table); LLD 14; DESIGN_SYSTEM 9 | `:app` was listed as depending only on `:capture:api`, but the component gallery needs the design system | `:app` depends on `:capture:api` and `:designsystem`; diagram and table updated | Approved, applied |
+| 4 | blocker | DESIGN_SYSTEM 9; LLD 1, 2, 15; HLD 3 | The theme was built from the public `Appearance`, which would make `:designsystem` depend on `:capture:api` | `:designsystem` defines `CcAppearance`; `:capture:api` maps `Appearance` to it; `:designsystem` still depends only on Compose and Material 3 | Approved, applied |
+| 5 | should fix | HLD 3 (table); LLD 1, 5 | `:core:opencv` was "dependency-free" yet converted frames, which implies the domain `FrameData` | `:core:opencv` takes raw buffers and dimensions; `FrameMatsAdapter` in `:core:quality` adapts `FrameData` | Approved, applied |
+| 6 | blocker | LLD 1, 2, 4.4; HLD 3, 3.1, 3.2; SDK_REQUIREMENTS 2 | The `clearcapture-compose` and `clearcapture-testing` artifacts had no modules, and the navigation functions sat in `:capture:api` | Modules `:capture:compose` and `:capture:testing` added (both depend on `:capture:api`); `EvidenceCaptureNavigation` moved out of the `:capture:api` listing | Approved, applied |
+| 7 | should fix | LLD 3.2, 3.4, 4.1; DESIGN_SYSTEM 2.4 | `GuideStatus` had three values; the design system has four guide states | `GuideStatus` is Neutral, Ready, Warning, Problem, with the mapping from the stable hint defined in LLD 3.4 | Approved, applied |
+| 8 | should fix | HLD 9; LLD 3.4 | HLD 9 and LLD 3.4 gave two different hint priority orders | LLD 3.4 is the single definition; HLD 9 refers to it | Approved, applied |
+| 9 | should fix | LLD 3, 6.2, 13; SDK_REQUIREMENTS 5.3, 8; HLD 5.4 | The location requirement was stated twice in a profile (`location.required` and `LOCATION` in `requiredChecks`) and could disagree | `location.required` is the single source of truth; the profile loader derives the `LOCATION` entry; all four bundled profiles require location | Approved, applied |
+| 10 | should fix | HLD 13; SDK_REQUIREMENTS 8 | The risk table promised a "flagged override" without a GPS fix that no other document specified | No such override in 0.1.0; a host that must capture without a fix supplies a profile with `location.required = false` | Approved, applied |
+| 11 | blocker | SDK_REQUIREMENTS 3.2, 5.3, 5.4, 6, 12; LLD 2, 4.3, 13 | Results were not defined consistently: the approximate-only row returned a blocker name as a result, and low storage, fatal blockers and leaving at the permission step had no defined result | Leaving anywhere gives `Cancelled`; `LOCATION_PRECISE_NOT_GRANTED` is only a `Blocker` and a `message` entry; low storage gives `Failed(STORAGE_FULL)`; fatal blockers give `Failed(NOT_READY)`; unknown profile gives `Failed(PROFILE_NOT_FOUND)` | Approved, applied |
+| 12 | should fix | LLD 3, 3.2, 9 | Record status had no value for a failed attempt, although every attempt is recorded | Status values are PENDING, ACCEPTED, DISCARDED, FAILED (`CaptureStatus`), with when each is set | Approved, applied |
+| 13 | blocker | LLD 3.2, 3.4, 4.1, 13; HLD 9; DESIGN_SYSTEM intro, 2.3, 2.4 | When the shutter is disabled was not defined; the HTML preview suggested warnings disable it | Shutter gating rule added: disabled only when the camera is not ready, a capture is in progress, location blocks capture, or the stable hint is a live `FAIL` of a non-warning-only check. The HTML preview is marked as an illustration only | Approved, applied |
+| 14 | blocker | LLD 2, 3.1, 13; SDK_REQUIREMENTS 6, 8; HLD 3.2 | `checkReadiness` is synchronous and "no side effects" but must check a profile ID through a `suspend` provider, and seemed to conflict with "no work at app start" | It stays synchronous and asks the provider only when `profileId` is passed; the public SPI `CaptureProfileProvider` is blocking and Java-callable, the domain port stays `suspend`; "no side effects" and "no work at app start" are clarified | Approved, applied |
+| 15 | blocker | LLD 3, 3.1, 3.3, 4.2, 5, 11, 13 | Behaviour after capture when OpenCV could not be loaded was undefined | `analyzeFile` still runs the resolution and integrity check; every OpenCV-based required check is `FAIL` with new reason code `ANALYSIS_UNAVAILABLE`; accept only if the profile allows override; error catalogue row added | Approved, applied |
+| 16 | should fix | LLD 1, 3, 3.2, 4.1, 6.2, 13; HLD 11 | Device overrides were "applied last" by the loader, which does not know the camera | `CaptureProfile` carries `deviceOverrides`; `ProfileResolver.resolve(profile, cameraTraits)` applies them at `CameraState.Ready`; the base profile is used before that | Approved, applied |
+| 17 | blocker | LLD 2, 9; SDK_REQUIREMENTS 7, 12 | The kind of `imageUri`, how to get a shareable URI, and where `outputDirectory` may point were unspecified | `imageUri` is a `file://` URI to app-private storage (nothing else new on `Accepted`); `ClearCapture.getShareableUri` returns a `content://` URI; `outputDirectory` must be inside private storage, else `IllegalArgumentException` at launch-contract creation | Approved, applied |
+| 18 | should fix | SDK_REQUIREMENTS 7 | Claimed the SDK keeps the camera warm between launches; no design supports it and it conflicts with "nothing runs until the flow opens" | Sentence removed | Approved, applied |
+| 19 | should fix | LLD 2, 9, 14; SDK_REQUIREMENTS 8 | `CaptureDiagnostics.attempts` had no source when the host replaces the repository | It reads from whichever `CaptureRepository` is active | Approved, applied |
+| 20 | should fix | LLD 5.2 | "`WARNING` inside a 15 % margin of each limit" did not say on which side or how it is computed | Defined: mean < `lumaMin × 1.15` or > `lumaMax × 0.85`, dark share > `darkClipMax × 0.85`, bright share > `brightClipMax × 0.85` | Approved, applied |
+| 21 | note | HLD header | The background PDF differs from the design (Hilt everywhere, module names, WorkManager upload, `CV_64F`) and its standing was unstated | The PDF is background only; the four documents win; stated in the HLD companions row | Approved, applied |
+| 22 | should fix | LLD 13; HLD 14 | How fixture images are generated and where validator tests run was unstated | The generator is Kotlin/JVM code in the test source set of `:core:quality` (no Python); validator tests run on the JVM with `org.openpnp:opencv` | Approved, applied |
+| 23 | should fix | LLD 7, 8.1; HLD 7 | The preview composable was unspecified, and LLD 8.1 referred to a "DI module" that the SDK does not have | `CameraPreview` uses the stable `CameraXViewfinder` from `camera-compose` 1.6.2; the location source is chosen in `CaptureGraph` | Approved, applied |
+| 24 | note | HLD 7, 14; LLD 13; DESIGN_SYSTEM 9 | "detekt or ktlint" and the screenshot tool were undecided; the Git workflow was not in the design | detekt 1.23.8; Roborazzi on the JVM; `main` protected, `development` the base branch, CI on every pull request | Approved, applied |
+| 25 | note | HLD 3 (table) | `:designsystem` was "Compose only" in the HLD but "Compose and Material 3" in DESIGN_SYSTEM 9 | HLD table now says Compose and Material 3 only | Approved, applied |
+| 26 | should fix | LLD 3.1, 3.2 | `DiscardCaptureUseCase` keeps the record as discarded, but the `CaptureRepository` port had no way to set that status | `markDiscarded(captureId)` added to the port | Approved, applied |
+| 27 | note | LLD 3, 7, 11 | `AnalyzerUnavailable` was described as "OpenCV failed to load" in the model and catalogue but is also reported when ImageAnalysis cannot be bound (LLD 7) | Both origins named in the model comment and the catalogue row | Approved, applied |
+| 28 | note | SDK_REQUIREMENTS 3.1 | `minSdk` was "to be fixed in `VERSIONS.md`" and the ABI row offered `armeabi-v7a`, although both are decided there | `minSdk` 26 marked decided; ABI row is `arm64-v8a` only | Approved, applied |
+| 29 | note | SDK_REQUIREMENTS 2 | "`:capture:*` … published as one AAR" would now include the two new, separately published modules | The fused modules are listed by name; the two optional artifacts name their modules | Approved, applied |
+| 30 | should fix | LLD 2; SDK_REQUIREMENTS 6, 12 | In `HOST_MANAGED` mode "any blocker stops the launch", but location services being off had no result code | It gives `Failed(NOT_READY)` in that mode, since the SDK shows no screen on which to fix it | Approved, applied |
+| 31 | note | HLD 7 | The technology table showed floors and "latest", not the versions resolved in `VERSIONS.md` | Table shows the resolved versions; the Why column is unchanged | Approved, applied |
+| 32 | note | HLD 1.4, 15 | Assumptions and open questions that `VERSIONS.md` section 8 records as decided | Section 1.4 is now "Decisions"; section 15 keeps only the licence and the first host apps' Kotlin and Compose versions | Approved, applied |
+| 33 | should fix | LLD 5, 6.1 | The warning-only downgrade would turn `ANALYSIS_UNAVAILABLE` into a `WARNING` for framing and obstruction, against finding 15 | The downgrade rule does not apply to `ANALYSIS_UNAVAILABLE` | Approved, applied |
+
+## Left open
+
+One inconsistency was found and not changed, because the fix alters the public API beyond the approved decisions: `CaptureResult.Accepted.location` is a non-null `GeoStamp`, but a profile with `location.required = false` (findings 9 and 10) can be accepted with no fix. The owner needs to decide between a nullable `location` and a placeholder value.
+
+## Budgets at risk
+
+| Budget | Why it is at risk |
+|---|---|
+| Shutter to image saved ≤ 800 ms, with maximise-quality | Maximise-quality capture runs the device's full processing pipeline at the highest 4:3 resolution, which on mid-range tablets often takes longer than 800 ms by itself. |
+| Image saved to verdict ≤ 1.5 s (p95) on high-megapixel cameras | Decoding a large JPEG, the extra full-resolution region decode for the blur check and the EXIF read-write-verify round all sit outside the 1 s allowed for the checks. |
+| Live analysis ≤ 60 ms (p95) with glare, framing and obstruction on low-end tablets | Glare needs a colour conversion and connected components, and framing and obstruction each run Canny, so the frames on which all three run can exceed the budget on slow processors. |
+| Cold start ≤ 1.5 s to first frame, with Compose | First-time Compose class loading and composition are slow without a Baseline Profile, and camera opening and OpenCV loading compete for the same time. |

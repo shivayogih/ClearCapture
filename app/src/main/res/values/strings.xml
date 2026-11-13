@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ClearCapture</string>
+    <string name="placeholder_title">ClearCapture POC</string>
+    <string name="placeholder_body">The project skeleton is in place. Capture features arrive in the next milestones.</string>
+</resources>

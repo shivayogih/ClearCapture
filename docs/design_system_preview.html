@@ -1,0 +1,65 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>ClearCapture design system preview</title><style>
+body{font-family:Roboto,"DejaVu Sans",Arial,sans-serif;margin:24px;color:#14181A;background:#fff}
+h1{font-size:26px;margin:0 0 4px}h2{font-size:18px;margin:28px 0 10px;border-bottom:2px solid #0B6B53;padding-bottom:4px}p{color:#3F4947;margin:4px 0 10px}
+.sw{display:inline-block;width:150px;height:74px;padding:8px;margin:0 8px 8px 0;font-size:12px;border-radius:12px;border:1px solid #c9cfcd;vertical-align:top}
+.dark{background:#101415;padding:12px 12px 4px;border-radius:16px}
+.ty div{margin:6px 0}
+.cam{display:inline-block;position:relative;width:440px;height:290px;margin:0 14px 30px 0;border-radius:16px;overflow:hidden;background:#9db9cf;vertical-align:top}
+.scene{position:absolute;left:0;right:0;top:95px;bottom:0;background:#b9ad9c;border-bottom:70px solid #5f6266}
+.bin{position:absolute;left:150px;top:112px;width:140px;height:96px;background:#22784a;border:3px solid #0f3c23;border-top:14px solid #1a6038}
+.guide{position:absolute;left:105px;top:70px;width:226px;height:170px;border:3px solid #fff;border-radius:12px;outline:1px solid #000}
+.banner{position:absolute;left:44px;top:10px;width:336px;height:40px;line-height:40px;background:rgba(0,0,0,.72);color:#fff;border-radius:28px;font-size:16px;font-weight:600;text-align:center;white-space:nowrap}
+.ic{display:inline-block;width:22px;height:22px;line-height:22px;border-radius:11px;color:#000;font-size:14px;margin-right:8px;vertical-align:middle}
+.chip{position:absolute;left:10px;top:56px;background:rgba(0,0,0,.72);color:#fff;font-size:12px;padding:5px 10px;border-radius:28px}
+.close,.torch{position:absolute;right:10px;width:38px;height:38px;line-height:38px;text-align:center;background:rgba(0,0,0,.72);color:#fff;border-radius:19px;font-size:16px}
+.close{top:10px}.torch{top:76px}
+.shutter{position:absolute;right:8px;top:122px;width:52px;height:52px;border:4px solid #fff;border-radius:30px}
+.shutter div{margin:5px;width:42px;height:42px;background:#fff;border-radius:21px}
+.cap{position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,.72);color:#fff;font-size:12px;padding:4px 10px}
+.rev{width:520px;border:1px solid #c9cfcd;border-radius:16px;padding:16px}
+.badge{display:inline-block;padding:8px 16px;border-radius:28px;font-weight:600;font-size:16px;margin-right:8px}
+.rowc{padding:10px 12px;border-radius:12px;margin:8px 0;font-size:14px}
+.btn{display:inline-block;height:48px;line-height:48px;padding:0 28px;border-radius:28px;font-weight:600;margin:10px 10px 0 0}
+</style></head><body>
+<h1>ClearCapture design system preview</h1><p>Generated from the tokens in DESIGN_SYSTEM.md. An illustration of the tokens, not the app itself.</p>
+<h2>Light theme colours (contrast of each pair)</h2><div class="sw" style="background:#0B6B53;color:#FFFFFF"><b>primary</b><br>#0B6B53<br>6.5:1</div><div class="sw" style="background:#BFEBDD;color:#00382A"><b>primaryContainer</b><br>#BFEBDD<br>10.1:1</div><div class="sw" style="background:#FFFFFF;color:#14181A"><b>surface</b><br>#FFFFFF<br>17.9:1</div><div class="sw" style="background:#EEF1F0;color:#3F4947"><b>surfaceVariant</b><br>#EEF1F0<br>8.2:1</div><div class="sw" style="background:#17703A;color:#FFFFFF"><b>success</b><br>#17703A<br>6.1:1</div><div class="sw" style="background:#CDEFD6;color:#0A3D1E"><b>successContainer</b><br>#CDEFD6<br>10.0:1</div><div class="sw" style="background:#8A5300;color:#FFFFFF"><b>warning</b><br>#8A5300<br>6.3:1</div><div class="sw" style="background:#FFE2A8;color:#3A2400"><b>warningContainer</b><br>#FFE2A8<br>11.7:1</div><div class="sw" style="background:#B3261E;color:#FFFFFF"><b>error</b><br>#B3261E<br>6.5:1</div><div class="sw" style="background:#FFDAD5;color:#5C0F0A"><b>errorContainer</b><br>#FFDAD5<br>10.6:1</div><div class="sw" style="background:#1F5FA8;color:#FFFFFF"><b>info</b><br>#1F5FA8<br>6.4:1</div>
+<h2>Dark theme colours</h2><div class="dark"><div class="sw" style="background:#7FD6BC;color:#00382A"><b>primary</b><br>#7FD6BC<br>7.7:1</div><div class="sw" style="background:#005141;color:#BFEBDD"><b>primaryContainer</b><br>#005141<br>7.2:1</div><div class="sw" style="background:#101415;color:#E3E7E6"><b>surface</b><br>#101415<br>14.9:1</div><div class="sw" style="background:#232A29;color:#C2CAC7"><b>surfaceVariant</b><br>#232A29<br>8.8:1</div><div class="sw" style="background:#7EDB95;color:#00390F"><b>success</b><br>#7EDB95<br>7.8:1</div><div class="sw" style="background:#0F5226;color:#CDEFD6"><b>successContainer</b><br>#0F5226<br>7.5:1</div><div class="sw" style="background:#FFC267;color:#472A00"><b>warning</b><br>#FFC267<br>8.2:1</div><div class="sw" style="background:#5F3B00;color:#FFE2A8"><b>warningContainer</b><br>#5F3B00<br>7.9:1</div><div class="sw" style="background:#FFB4AB;color:#690005"><b>error</b><br>#FFB4AB<br>7.7:1</div><div class="sw" style="background:#8C1D18;color:#FFDAD5"><b>errorContainer</b><br>#8C1D18<br>7.0:1</div><div class="sw" style="background:#A8C8FF;color:#00315F"><b>info</b><br>#A8C8FF<br>7.7:1</div></div>
+<h2>Type scale</h2><div class="ty">
+<div style="font-size:24px;font-weight:600">hint 24 SemiBold: Hold steady</div>
+<div style="font-size:20px;font-weight:600">title 20 SemiBold: Photo needs a retake</div>
+<div style="font-size:16px;font-weight:500">bodyStrong 16 Medium: Sharpness</div>
+<div style="font-size:16px">body 16 Regular: The photo is blurred. Hold the tablet steady and try again.</div>
+<div style="font-size:14px;font-weight:500">label 14 Medium: Location ready, accurate to 4 m</div></div>
+<h2>Camera screen states (landscape)</h2>
+<div class="cam"><div class="scene"></div><div class="bin"></div>
+<div class="guide" style="border-color:#4ADE80"></div>
+<div class="banner"><span class="ic" style="background:#4ADE80">&#10003;</span>Ready</div>
+<div class="chip">&#9679; Location ready &#177;4 m</div><div class="close">&#10005;</div>
+<div class="torch">&#9889;</div><div class="shutter" style="opacity:1"><div></div></div>
+<div class="cap">Ready: shutter enabled</div></div>
+<div class="cam"><div class="scene"></div><div class="bin"></div>
+<div class="guide" style="border-color:#FFC53D"></div>
+<div class="banner"><span class="ic" style="background:#FFC53D">!</span>Too dark</div>
+<div class="chip">&#9679; Location ready &#177;4 m</div><div class="close">&#10005;</div>
+<div class="torch">&#9889;</div><div class="shutter" style="opacity:1"><div></div></div>
+<div class="cap">Warning hint: shutter enabled if the profile allows</div></div>
+<div class="cam"><div class="scene"></div><div class="bin"></div>
+<div class="guide" style="border-color:#FF8A80"></div>
+<div class="banner"><span class="ic" style="background:#FF8A80">&#10005;</span>Fit the container in the frame</div>
+<div class="chip">&#9679; Location ready &#177;4 m</div><div class="close">&#10005;</div>
+<div class="torch">&#9889;</div><div class="shutter" style="opacity:.38"><div></div></div>
+<div class="cap">Blocking hint: shutter disabled, reason shown</div></div>
+<div class="cam"><div class="scene"></div><div class="bin"></div>
+<div class="guide" style="border-color:#FFFFFF"></div>
+<div class="banner"><span class="ic" style="background:#FFFFFF">&#8230;</span>Waiting for location</div>
+<div class="chip">&#9675; Finding location</div><div class="close">&#10005;</div>
+<div class="torch">&#9889;</div><div class="shutter" style="opacity:.38"><div></div></div>
+<div class="cap">Waiting: shutter disabled</div></div>
+<h2>Review screen components</h2><div class="rev">
+<span class="badge" style="background:#17703A;color:#fff">&#10003; Passed</span><span class="badge" style="background:#8A5300;color:#fff">! Check</span><span class="badge" style="background:#B3261E;color:#fff">&#10005; Retake</span>
+<div class="rowc" style="background:#CDEFD6;color:#0A3D1E"><b>&#10003; Sharpness</b> &nbsp;Clear</div>
+<div class="rowc" style="background:#FFE2A8;color:#3A2400"><b>! Glare</b> &nbsp;Reflection on part of the subject. Change your angle if you can.</div>
+<div class="rowc" style="background:#FFDAD5;color:#5C0F0A"><b>&#10005; Framing</b> &nbsp;The container is cut off. Move back and fit it in the frame.</div>
+<div class="rowc" style="background:#EEF1F0;color:#3F4947"><b>Location</b> &nbsp;Saved in the photo, accurate to 4 m</div>
+<span class="btn" style="border:2px solid #0B6B53;color:#0B6B53">Retake</span><span class="btn" style="background:#0B6B53;color:#fff">Accept</span></div>
+</body></html>

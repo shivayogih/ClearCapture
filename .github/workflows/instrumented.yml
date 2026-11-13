@@ -1,0 +1,56 @@
+name: Instrumented tests
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 20 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  emulator:
+    name: Emulator tests (API ${{ matrix.api }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [26, 35]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: development
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: true
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run instrumented tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          script: ./gradlew connectedDebugAndroidTest --stacktrace
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: instrumented-reports-api-${{ matrix.api }}
+          path: '**/build/reports/androidTests/**'
+          if-no-files-found: ignore
+          retention-days: 14

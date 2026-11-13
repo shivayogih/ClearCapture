@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [development, main]
+  push:
+    branches: [development, main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build, test and analyse
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/development' }}
+
+      - name: Build, unit tests, detekt, lint, architecture rules
+        run: ./gradlew check assembleDebug --stacktrace
+
+      - name: Release build of the POC (R8)
+        run: ./gradlew :app:assembleRelease --stacktrace
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports
+          path: |
+            **/build/reports/**
+            **/build/outputs/roborazzi/**
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload POC APKs
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: poc-apk
+          path: app/build/outputs/apk/**/*.apk
+          retention-days: 14
