@@ -1,9 +1,10 @@
 plugins {
     id("clearcapture.kotlin.library")
     id("clearcapture.test")
+    `java-test-fixtures`
 }
 
 dependencies {
     api(project(":core:common"))
-    implementation(libs.kotlinx.coroutines.core)
+    api(libs.kotlinx.coroutines.core)
 }

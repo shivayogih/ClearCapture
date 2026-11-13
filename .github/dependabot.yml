@@ -6,6 +6,13 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    ignore:
+      # OpenCV stays on 4.x for 0.1.0; see docs/VERSIONS.md section 4.
+      - dependency-name: org.opencv:opencv
+        update-types: [version-update:semver-major]
+      # org.openpnp:opencv is the desktop build used only by JVM unit tests; it tracks the Android major.
+      - dependency-name: org.openpnp:opencv
+        update-types: [version-update:semver-major]
     groups:
       androidx:
         patterns: ['androidx.*']

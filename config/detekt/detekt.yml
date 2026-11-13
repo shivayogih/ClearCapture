@@ -41,7 +41,7 @@ style:
       - value: 'STOPSHIP:'
         reason: 'Must not be merged.'
   MaxLineLength:
-    maxLineLength: 120
+    maxLineLength: 140
 
 potential-bugs:
   UnsafeCallOnNullableType:
