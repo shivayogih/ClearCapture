@@ -1,5 +1,6 @@
 package com.clearcapture.clearcapture.quality
 
+import com.clearcapture.clearcapture.domain.quality.QualityScoreCalculator
 import com.clearcapture.clearcapture.domain.model.CheckResult
 import com.clearcapture.clearcapture.domain.model.QualityCheck
 import com.clearcapture.clearcapture.domain.model.ReasonCode
@@ -17,7 +18,7 @@ class QualityScoreCalculatorTest {
         CheckResult(check, verdict, if (verdict == Verdict.PASS) null else reason ?: ReasonCode.BLUR_FOCUS, emptyMap(), emptyMap())
 
     private fun report(vararg results: CheckResult) =
-        QualityScoreCalculator.report(Stage.POST_CAPTURE, results.toList(), profile, analysisMillis = 12)
+        QualityScoreCalculator.combine(Stage.POST_CAPTURE, results.toList(), profile, 12)
 
     @Test
     fun `all passing gives PASS and 100`() {

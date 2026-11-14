@@ -1,5 +1,6 @@
 package com.clearcapture.clearcapture.quality
 
+import com.clearcapture.clearcapture.domain.quality.QualityScoreCalculator
 import com.clearcapture.clearcapture.common.Clock
 import com.clearcapture.clearcapture.common.Logger
 import com.clearcapture.clearcapture.common.Outcome
@@ -74,7 +75,7 @@ internal class OpenCvQualityAnalyzer(
         } else {
             selected.map { analysisUnavailable(it.check, Stage.LIVE) }
         }
-        return QualityScoreCalculator.report(Stage.LIVE, results, profile, elapsedMillis(start))
+        return QualityScoreCalculator.combine(Stage.LIVE, results, profile, elapsedMillis(start))
     }
 
     override suspend fun analyzeFile(
@@ -97,7 +98,7 @@ internal class OpenCvQualityAnalyzer(
                 if (validator.needsOpenCv) analysisUnavailable(validator.check, Stage.POST_CAPTURE) else validator.validate(input, profile)
             }
         }
-        Outcome.Success(QualityScoreCalculator.report(Stage.POST_CAPTURE, results, profile, elapsedMillis(start)))
+        Outcome.Success(QualityScoreCalculator.combine(Stage.POST_CAPTURE, results, profile, elapsedMillis(start)))
     }
 
     private fun select(stage: Stage, profile: CaptureProfile): List<QualityValidator> = validators.filter {
