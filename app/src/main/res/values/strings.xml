@@ -1,6 +1,55 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">ClearCapture</string>
-    <string name="placeholder_title">ClearCapture POC</string>
-    <string name="placeholder_body">The project skeleton is in place. Capture features arrive in the next milestones.</string>
+
+    <!-- Component gallery (POC only). -->
+    <string name="gallery_title">Component gallery</string>
+    <string name="gallery_dark">Dark</string>
+    <string name="gallery_square">Square corners</string>
+    <string name="gallery_brand">Brand colour</string>
+    <string name="gallery_brand_default">Default</string>
+    <string name="gallery_brand_ocean">Ocean</string>
+    <string name="gallery_brand_plum">Plum</string>
+    <string name="gallery_brand_sun_fails">Sun (fails contrast)</string>
+    <string name="gallery_brand_refused">Brand colours refused: contrast %1$s:1 is below 4.5:1. The default is used.</string>
+    <string name="gallery_font">Font</string>
+    <string name="gallery_font_system">System</string>
+    <string name="gallery_font_serif">Serif</string>
+    <string name="gallery_font_mono">Monospace</string>
+
+    <string name="gallery_hint_banner">CcHintBanner</string>
+    <string name="gallery_location_chip">CcLocationChip</string>
+    <string name="gallery_shutter">CcShutterButton</string>
+    <string name="gallery_icon_button">CcIconButton</string>
+    <string name="gallery_guide">CcGuideOverlay</string>
+    <string name="gallery_scrim">CcScrim</string>
+    <string name="gallery_verdict">CcVerdictBadge</string>
+    <string name="gallery_check_row">CcCheckRow</string>
+    <string name="gallery_buttons">CcPrimaryButton and CcSecondaryButton</string>
+    <string name="gallery_profile_card">CcProfileCard</string>
+    <string name="gallery_text_field">CcTextField</string>
+    <string name="gallery_permission_card">CcPermissionCard</string>
+    <string name="gallery_status_screen">CcStatusScreen</string>
+
+    <string name="gallery_check_sharpness">Sharpness</string>
+    <string name="gallery_clear">Clear</string>
+    <string name="gallery_check_glare">Glare</string>
+    <string name="gallery_glare_reason">Reflection on part of the subject</string>
+    <string name="gallery_glare_advice">Change your angle if you can</string>
+    <string name="gallery_accept">Accept</string>
+    <string name="gallery_profile_container">Shipping container</string>
+    <string name="gallery_profile_container_body">Doors, seals and markings</string>
+    <string name="gallery_profile_portrait">Portrait</string>
+    <string name="gallery_profile_portrait_body">Head and shoulders</string>
+    <string name="gallery_profile_vehicle">Vehicle</string>
+    <string name="gallery_profile_vehicle_body">Side view with number plate</string>
+    <string name="gallery_reason_label">Reason for accepting</string>
+    <string name="gallery_reason_error">Write at least 10 characters</string>
+    <string name="gallery_permission_camera">Camera</string>
+    <string name="gallery_permission_camera_reason">Needed to take the photo of the container.</string>
+    <string name="gallery_status_info_title">Location is off</string>
+    <string name="gallery_status_info_message">Turn on location to take photos that can be accepted.</string>
+    <string name="gallery_status_error_title">Camera unavailable</string>
+    <string name="gallery_status_error_message">Another app is using the camera. Close it and try again.</string>
+    <string name="gallery_try_again">Try again</string>
 </resources>

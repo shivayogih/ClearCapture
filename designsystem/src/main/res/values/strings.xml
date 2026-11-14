@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Every user-facing string of the design system. A host overrides any of them by declaring a
+    string with the same name in its own resources (SDK_REQUIREMENTS.md section 8).
+-->
+<resources>
+    <!-- Hints and reasons, DESIGN_SYSTEM.md section 7. Hints: sentence case, no full stop. -->
+    <string name="cc_hint_hold_steady">Hold steady</string>
+    <string name="cc_hint_too_dark">Too dark. Move into the light or turn on the torch</string>
+    <string name="cc_hint_fit_container">Fit the container in the frame</string>
+    <string name="cc_waiting_for_location">Waiting for location…</string>
+    <string name="cc_reason_blurred">The photo is blurred. Hold the tablet steady and try again</string>
+
+    <!-- Status words, DESIGN_SYSTEM.md section 2.4. -->
+    <string name="cc_status_ready">Ready</string>
+    <string name="cc_status_passed">Passed</string>
+    <string name="cc_status_check">Check</string>
+    <string name="cc_status_retake">Retake</string>
+
+    <!-- Shutter. -->
+    <string name="cc_shutter_label">Take photo</string>
+    <string name="cc_shutter_capturing">Taking photo…</string>
+
+    <!-- Icon buttons. -->
+    <string name="cc_torch">Torch</string>
+    <string name="cc_torch_on">Torch on</string>
+    <string name="cc_torch_off">Torch off</string>
+    <string name="cc_close">Close</string>
+    <string name="cc_back">Back</string>
+    <string name="cc_state_on">On</string>
+    <string name="cc_state_off">Off</string>
+
+    <!-- Location chip. -->
+    <string name="cc_location_ready">Location ±%1$d m</string>
+    <string name="cc_location_weak">Weak location ±%1$d m</string>
+    <string name="cc_location_weak_unknown">Weak location</string>
+    <string name="cc_location_off">Location is off</string>
+    <string name="cc_location_no_permission">No location permission</string>
+    <plurals name="cc_location_ready_description">
+        <item quantity="one">Location ready, accurate to %1$d metre</item>
+        <item quantity="other">Location ready, accurate to %1$d metres</item>
+    </plurals>
+    <plurals name="cc_location_weak_description">
+        <item quantity="one">Location weak, accurate to %1$d metre</item>
+        <item quantity="other">Location weak, accurate to %1$d metres</item>
+    </plurals>
+    <string name="cc_open_settings">Open settings</string>
+
+    <!-- Review. -->
+    <string name="cc_verdict_loading">Checking photo…</string>
+    <string name="cc_check_sentence">%1$s: %2$s.</string>
+
+    <!-- Buttons and fields. -->
+    <string name="cc_loading">Loading…</string>
+    <string name="cc_character_count">%1$d / %2$d</string>
+    <string name="cc_character_count_description">%1$d of %2$d characters</string>
+
+    <!-- Permission card. -->
+    <string name="cc_permission_allow">Allow</string>
+    <string name="cc_permission_granted">Allowed</string>
+    <string name="cc_permission_denied">Not allowed yet</string>
+    <string name="cc_permission_permanently_denied">Turned off. You can allow it in Settings</string>
+</resources>

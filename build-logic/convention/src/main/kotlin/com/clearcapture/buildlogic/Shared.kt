@@ -41,6 +41,7 @@ internal fun Project.configureAndroidCommon(extension: CommonExtension) {
     configureKotlinCompiler()
     configureDetekt()
     registerModuleRulesCheck()
+    registerRawDesignValuesCheck()
 }
 
 /** Kotlin compiler options shared by Android and JVM modules. */
