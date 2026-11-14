@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Precise location for the capture fix; coarse is required alongside it on Android 12 and later. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- Location hardware is optional so adding the SDK never hides the host app on Google Play. -->
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
+</manifest>
