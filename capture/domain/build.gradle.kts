@@ -7,4 +7,6 @@ plugins {
 dependencies {
     api(project(":core:common"))
     api(libs.kotlinx.coroutines.core)
+
+    testFixturesImplementation(libs.kotlinx.coroutines.core)
 }
