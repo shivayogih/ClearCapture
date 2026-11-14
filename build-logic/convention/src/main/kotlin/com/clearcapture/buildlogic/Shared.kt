@@ -23,7 +23,14 @@ internal fun VersionCatalog.version(alias: String): String = findVersion(alias).
 
 internal fun VersionCatalog.library(alias: String) = findLibrary(alias).get()
 
-internal fun Project.javaVersion(): JavaVersion = JavaVersion.toVersion(libs.version("jdk"))
+/**
+ * Bytecode level for this module: apps use the build JDK (21); SDK libraries use `sdkBytecode` (17) so a host
+ * building on JDK 17 can still read them. The compilers always run on the JDK 21 daemon.
+ */
+internal fun Project.bytecodeLevel(): String =
+    if (pluginManager.hasPlugin("com.android.application")) libs.version("jdk") else libs.version("sdkBytecode")
+
+internal fun Project.javaVersion(): JavaVersion = JavaVersion.toVersion(bytecodeLevel())
 
 /** Settings shared by the application and every Android library. */
 internal fun Project.configureAndroidCommon(extension: CommonExtension) {
@@ -49,7 +56,9 @@ internal fun Project.configureKotlinCompiler() {
     val explicitApi = path == ":capture:api" || path == ":capture:compose" || path == ":capture:testing"
     tasks.withType<KotlinCompile>().configureEach {
         compilerOptions {
-            jvmTarget.set(JvmTarget.fromTarget(libs.version("jdk")))
+            jvmTarget.set(JvmTarget.fromTarget(bytecodeLevel()))
+            // Compile against the API of the target level, not the JDK 21 the compiler runs on.
+            freeCompilerArgs.add("-Xjdk-release=${bytecodeLevel()}")
             allWarningsAsErrors.set(false)
             if (explicitApi && !name.contains("Test")) {
                 freeCompilerArgs.add("-Xexplicit-api=strict")
@@ -77,7 +86,7 @@ internal fun Project.configureDetekt() {
         }
     }
     tasks.withType<Detekt>().configureEach {
-        jvmTarget = libs.version("jdk")
+        jvmTarget = libs.version("sdkBytecode")
         reports.html.required.set(true)
         reports.xml.required.set(false)
         reports.txt.required.set(false)

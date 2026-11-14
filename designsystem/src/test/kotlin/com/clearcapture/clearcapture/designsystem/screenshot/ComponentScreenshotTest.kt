@@ -40,7 +40,7 @@ import org.robolectric.annotation.GraphicsMode
  */
 @RunWith(ParameterizedRobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-// SDK 34: Robolectric needs Java 21 for SDK 35 and later, and the project builds on JDK 17.
+// Rendered at SDK 34 so the committed goldens stay stable; moving to a newer SDK means re-recording them.
 @Config(sdk = [34], qualifiers = "w400dp-h900dp-hdpi")
 class ComponentScreenshotTest(
     private val component: String,

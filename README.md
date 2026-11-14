@@ -6,10 +6,23 @@ An Android SDK that captures evidence photographs and accepts one only when it i
 - Published as: `com.clearcapture:clearcapture` (from milestone 10)
 - `:app` is a thin POC shell used to test and calibrate the SDK on real tablets.
 
-## Requirements
+## Getting started
 
-- JDK 17
-- Android SDK with platform 37 and build tools 36.0.0 (`ANDROID_HOME` set, or `sdk.dir` in `local.properties`)
+1. Install the Android SDK (Android Studio is the easiest way) and set `ANDROID_HOME` to its folder.
+2. Run the bootstrap once per checkout. It finds the SDK, writes the machine-specific `local.properties` (git-ignored), and checks the SDK packages the build needs:
+
+   ```bash
+   ./scripts/bootstrap.sh --install        # macOS, Linux
+   ```
+
+   ```powershell
+   ./scripts/bootstrap.ps1 -Install        # Windows
+   ```
+
+   Android Studio users can simply open the project: it writes `local.properties` itself.
+3. Build: `./gradlew check assembleDebug`.
+
+You do not need to install a particular JDK. Gradle runs on **JDK 21**, pinned in `gradle/gradle-daemon-jvm.properties`, and downloads it automatically when no JDK 21 is installed. Apps are compiled for Java 21; the SDK libraries are compiled by JDK 21 to Java 17 bytecode (`sdkBytecode` in the catalog) so host apps that still build on JDK 17 can use them.
 
 All tool and library versions are in [gradle/libs.versions.toml](gradle/libs.versions.toml) and explained in [docs/VERSIONS.md](docs/VERSIONS.md).
 

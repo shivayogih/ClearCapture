@@ -4,7 +4,10 @@
 compileSdk = "37"
 targetSdk = "37"
 minSdk = "26"
-jdk = "17"
+# JDK that runs Gradle and the compilers (provisioned automatically, see gradle/gradle-daemon-jvm.properties).
+jdk = "21"
+# Bytecode level of the SDK libraries. Kept at 17 so hosts that still build on JDK 17 (AGP 9's minimum) can consume the AAR.
+sdkBytecode = "17"
 sdkVersion = "0.1.0"
 
 # Toolchain

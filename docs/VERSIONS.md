@@ -16,7 +16,7 @@ Repositories: **G** = Google Maven (`https://dl.google.com/android/maven2/`), **
 | Kotlin | `org.jetbrains.kotlin:kotlin-gradle-plugin` | 2.4.21 | 2026-10-08 | C | 2.3.10 | Yes |
 | Gradle | wrapper | 9.9.1 | 2026-11-10 | [services.gradle.org](https://services.gradle.org/versions/current) | AGP needs ≥ 9.6.0 | Yes |
 | KSP | `com.google.devtools.ksp:symbol-processing-gradle-plugin` | 2.3.13 | 2026-10-30 | C | n/a | n/a |
-| JDK | toolchain | 17 | n/a | [AGP notes](https://developer.android.com/build/releases/gradle-plugin) | AGP minimum 17 | Equal |
+| JDK | Gradle daemon JVM (auto-provisioned via foojay) | 21 | n/a | [AGP notes](https://developer.android.com/build/releases/gradle-plugin), `gradle/gradle-daemon-jvm.properties` | AGP minimum 17 | Above (project decision, 14 November 2026) |
 | compileSdk / targetSdk | platform | 37 | n/a | [AGP notes](https://developer.android.com/build/releases/gradle-plugin) | 37 | Equal (AGP 9.5 maximum) |
 | SDK Build Tools | | 36.0.0 | n/a | AGP notes | AGP minimum 36.0.0 | Equal |
 
@@ -113,7 +113,7 @@ Unit tests run the validators on the JVM using desktop OpenCV natives (`org.open
 | Android Gradle Plugin | 9.1.0 or higher (required by Compose 1.12 AAR metadata) |
 | Kotlin (Kotlin hosts only) | 2.3.0 or higher. The SDK is compiled with Kotlin 2.4, and a Kotlin compiler reads metadata one version ahead of itself |
 | Compose (hosts that use Compose) | Compose BOM 2026.08.00 or higher (Compose 1.12.x). Gradle resolves to the higher of the host's and the SDK's version |
-| Java-only hosts | Java 17 toolchain; no Kotlin plugin needed |
+| Java-only hosts | JDK 17 or newer; no Kotlin plugin needed (the SDK ships Java 17 bytecode) |
 
 ## 8. Project decisions
 
@@ -129,7 +129,14 @@ On 13 November 2026 the owner replied "all prompts are confirmed", without answe
 | 6 | Storage and Play Services | App-private storage, retention is the host's; Play Services is used when present, platform GPS otherwise |
 | 7 | Distribution and licence | Local Maven repository in the build; GitHub Packages from the release workflow. **Licence not decided** (open) |
 
-## 9. Repository workflow
+## 9. Build JDK (decision of 14 November 2026)
+
+- The build runs on JDK 21. `gradle/gradle-daemon-jvm.properties` pins it and lets Gradle download it per operating system, so no developer installs a JDK by hand. CI uses JDK 21.
+- Apps (`:app`, sample hosts) target Java 21.
+- SDK libraries target Java 17 bytecode, compiled with `-Xjdk-release=17` / `--release 17` so they cannot use JDK 21-only APIs. Reason: AGP 9 allows hosts to build on JDK 17, and javac on JDK 17 cannot read Java 21 class files. Raising `sdkBytecode` to 21 is one line in the catalog if every host is known to build on JDK 21.
+- `local.properties` is machine-specific and never committed. `scripts/bootstrap.ps1` / `scripts/bootstrap.sh` write it from `ANDROID_HOME`, `ANDROID_SDK_ROOT` or the default SDK path.
+
+## 10. Repository workflow
 
 - `main` is protected and receives only release merges. `development` is the default and base branch.
 - Work happens on `feature/*` branches merged into `development` through pull requests with CI passing.
