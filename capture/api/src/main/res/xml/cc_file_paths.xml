@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Accepted photographs, in the SDK folder or a host output directory inside app-private storage. -->
+<paths>
+    <files-path name="cc_files" path="." />
+    <cache-path name="cc_cache" path="." />
+    <external-files-path name="cc_external" path="." />
+</paths>

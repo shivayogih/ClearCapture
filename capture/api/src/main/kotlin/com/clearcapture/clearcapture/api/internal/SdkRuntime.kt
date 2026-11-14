@@ -42,6 +42,19 @@ internal class SdkRuntime(context: Context, val config: ClearCaptureConfig) {
         ReadinessChecker(AndroidReadinessEnvironment(appContext)) { profileProvider.profilesBlocking() }
     }
 
+    /** The default capture log, opened on first use (LLD 9). */
+    val repository: com.clearcapture.clearcapture.domain.port.CaptureRepository by lazy {
+        com.clearcapture.clearcapture.data.record.RoomCaptureRepository(appContext, dispatchers.io)
+    }
+
+    /** Process-scoped so OpenCV loads once, however many flows run. */
+    val openCv: com.clearcapture.clearcapture.opencv.OpenCvInitializer by lazy {
+        com.clearcapture.clearcapture.opencv.OpenCvInitializer(dispatchers.default)
+    }
+
+    /** Profiles, read synchronously; cached after the first read. */
+    fun profilesBlocking(): List<com.clearcapture.clearcapture.domain.model.CaptureProfile> = profileProvider.profilesBlocking()
+
     private fun readAsset(path: String): String? = try {
         appContext.assets.open(path).bufferedReader().use { it.readText() }
     } catch (_: FileNotFoundException) {

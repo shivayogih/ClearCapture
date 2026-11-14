@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Profiles. A host profile's titleKey names its own string resource. -->
+    <string name="cc_profile_container">Container</string>
+    <string name="cc_profile_person">Person</string>
+    <string name="cc_profile_vehicle">Vehicle</string>
+    <string name="cc_profile_general">General</string>
+    <string name="cc_profile_container_description">Waste container or bin</string>
+    <string name="cc_profile_person_description">Worker involved in collection</string>
+    <string name="cc_profile_vehicle_description">Truck, registration or inspection detail</string>
+    <string name="cc_profile_general_description">Any other field evidence</string>
+    <string name="cc_profile_custom_description">Custom profile</string>
+    <string name="cc_profile_title">What are you photographing?</string>
+    <string name="cc_profile_empty">No capture profiles are available</string>
+
+    <!-- Permission step (SDK_REQUIREMENTS 5.3). -->
+    <string name="cc_permission_title">Before you start</string>
+    <string name="cc_permission_camera_title">Camera</string>
+    <string name="cc_permission_camera_reason">Needed to take the evidence photo.</string>
+    <string name="cc_permission_location_title">Precise location</string>
+    <string name="cc_permission_location_reason">Saved inside each photo to prove where it was taken.</string>
+    <string name="cc_permission_step_explain_camera">Allow the camera to take evidence photos.</string>
+    <string name="cc_permission_step_explain_location">Allow precise location so each photo carries where it was taken.</string>
+    <string name="cc_permission_step_denied_camera">Without the camera no photo can be taken. You can allow it now.</string>
+    <string name="cc_permission_step_denied_location">Without location the photo cannot be used as evidence. You can allow it now.</string>
+    <string name="cc_permission_step_permanent">This permission is turned off. Allow it in Settings, then come back.</string>
+    <string name="cc_permission_step_precise">Only approximate location is allowed. Evidence photos need precise location.</string>
+    <string name="cc_permission_step_precise_refused">Precise location is turned off. Turn on \"Use precise location\" in Settings, then come back.</string>
+    <string name="cc_permission_step_location_off">Location is turned off on this device. Turn it on, then come back.</string>
+    <string name="cc_permission_action_allow">Continue</string>
+    <string name="cc_permission_action_ask_again">Ask again</string>
+    <string name="cc_permission_action_precise">Allow precise location</string>
+    <string name="cc_permission_action_location_settings">Turn on location</string>
+    <string name="cc_permission_not_now">Not now</string>
+
+    <!-- Live hints: short, sentence case, no full stop (DESIGN_SYSTEM section 3). -->
+    <string name="cc_hint_aim">Point at the subject</string>
+    <string name="cc_hint_location_waiting">Waiting for location</string>
+    <string name="cc_hint_location_off">Turn on location</string>
+    <string name="cc_hint_location_permission">Allow precise location</string>
+    <string name="cc_hint_analyzer_unavailable">Live guidance is not available</string>
+    <string name="cc_hint_dark">Too dark</string>
+    <string name="cc_hint_bright">Too bright</string>
+    <string name="cc_hint_steady">Hold steady</string>
+    <string name="cc_hint_glare">Avoid the reflection</string>
+    <string name="cc_hint_cut_off">Fit the subject in the frame</string>
+    <string name="cc_hint_cut_off_container">Fit the container in the frame</string>
+    <string name="cc_hint_small">Move closer</string>
+    <string name="cc_hint_close">Move back</string>
+    <string name="cc_hint_obstruction">Clear the view</string>
+    <string name="cc_hint_ready">Ready</string>
+
+    <!-- Why the shutter is disabled; read out by TalkBack. -->
+    <string name="cc_shutter_reason_camera">The camera is starting</string>
+    <string name="cc_shutter_reason_capturing">Taking the photo</string>
+
+    <!-- Review screen. -->
+    <string name="cc_review_title">Check the photo</string>
+    <string name="cc_review_accept">Accept</string>
+    <string name="cc_review_retake">Retake</string>
+    <string name="cc_review_override_label">Why accept this photo anyway?</string>
+    <string name="cc_review_override_hint">At least %1$d characters</string>
+    <string name="cc_review_block_warning">This profile does not allow accepting a photo with warnings. Retake it.</string>
+    <string name="cc_review_block_fail">This photo cannot be accepted. Retake it.</string>
+    <string name="cc_review_block_reason">Give a reason of at least %1$d characters to accept it.</string>
+    <string name="cc_review_save_failed">The photo could not be saved. Free some space and try again.</string>
+    <string name="cc_review_location">Location saved in the photo, accurate to %1$d m</string>
+    <string name="cc_review_location_mock">The location may not be real and will be flagged for review</string>
+    <string name="cc_review_check_passed">Clear</string>
+    <string name="cc_review_image_description">The photo you took</string>
+
+    <!-- Check names. -->
+    <string name="cc_check_blur">Sharpness</string>
+    <string name="cc_check_exposure">Light</string>
+    <string name="cc_check_glare">Glare</string>
+    <string name="cc_check_framing">Framing</string>
+    <string name="cc_check_resolution">Resolution</string>
+    <string name="cc_check_obstruction">Clear view</string>
+    <string name="cc_check_location">Location</string>
+
+    <!-- Error actions. -->
+    <string name="cc_action_retry">Try again</string>
+    <string name="cc_action_close">Close</string>
+</resources>
