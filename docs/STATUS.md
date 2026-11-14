@@ -8,8 +8,8 @@ Updated with every milestone commit. Last update: 14 November 2026, after the fi
 
 | | Count |
 |---|---|
-| ✅ Finished | 6 of 14 prompts (1, 2, 3, 4 M1, 5 M2, 7 M4) |
-| 🔄 In progress | M3 (screens and wiring); M5–M8 domain, data and ViewModel logic is done |
+| ✅ Finished | 9 of 14 prompts (1, 2, 3, 4 M1, 5 M2, 6 M3, 7 M4, 9 M6, 10 M7), each with device items still marked ⚠️ |
+| 🔄 In progress | M5 (adaptive step-down), M8 (POC tooling), image access, storage targets and upload queue |
 | ⏳ Pending | M9 performance, M10 packaging and sample hosts, final acceptance |
 | Unit tests | 464 passing, 0 failing |
 | Instrumented tests (emulator) | 9 passing (EXIF round trip 4, Room DAO 5); OpenCV smoke test not yet run |
@@ -26,7 +26,7 @@ Updated with every milestone commit. Last update: 14 November 2026, after the fi
 | 6 | M3 permissions, readiness, preview, profiles | ✅ | All of it, wired: SDK Activity, contract, navigation, composition root. Verified on the emulator: readiness, first request, approximate-only and the upgrade to precise, preview with the container guide | ⚠️ Permanent denial, location off and policy rows still to run on a device |
 | 7 | M4 OpenCV and validators | ✅ | Six validators, analyzer, fixtures, timings, 16 KB check passed, release APK 25.5 MB with OpenCV | ⚠️ OpenCV smoke test on a device |
 | 8 | M5 live validation and hints | 🔄 | Hint priority and stabiliser, live pipeline, guidance use case, gating rule | Wiring to the screen; adaptive step-down of analysis resolution; ⚠️ timings on a device |
-| 9 | M6 capture and review | 🔄 | Wired and verified on the emulator: shutter, saved JPEG, post-capture checks, review with the reason and advice for every check | Accept and retake run on the emulator (in progress); ⚠️ timings on a tablet |
+| 9 | M6 capture and review | ✅ | Verified on the emulator end to end: shutter, saved JPEG, post-capture checks, review with reason and advice for every check, override reason validated (10 characters), accept promotes the file to `cc_captures/yyyy/MM/dd` and returns `Accepted` to the host, retake discards, every attempt recorded in Room | ⚠️ Shutter-to-verdict timings on a tablet |
 | 10 | M7 location | ✅ | Wired. GPS tags verified inside a real capture: coordinates match the fix within 0.000002°, altitude, GPS time, method, accuracy. CameraX writes coordinates, altitude, GPS time and method, DateTimeOriginal; the SDK adds accuracy and OffsetTimeOriginal (bug found on the emulator and fixed) | ⚠️ Time to first fix outdoors with no network |
 | 11 | M8 persistence and POC tooling | 🔄 | Room repository (verified on emulator) | `CaptureDiagnostics`, debug overlay, tuning screen, capture log, export, device capability screen |
 | new | Image access, storage targets, upload queue | ⏳ | Designed in `SDK_REQUIREMENTS.md` 7.1 | `CaptureStore`, `StorageTarget` (app-private, shared Pictures, host sink), `clearcapture-upload` with WorkManager |

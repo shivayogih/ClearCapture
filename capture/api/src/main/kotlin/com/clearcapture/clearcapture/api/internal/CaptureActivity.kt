@@ -77,6 +77,7 @@ internal class CaptureActivity : ComponentActivity() {
     }
 
     private fun finishWith(outcome: FlowOutcome) {
+        ClearCapture.runtime(applicationContext).logger.debug(TAG, "Flow finished: ${outcome::class.simpleName}")
         val result = FlowOutcomeMapper.map(outcome, config.requestId)
         emitEvent(CaptureEvent.FlowClosed(config.requestId, result))
         setResult(Activity.RESULT_OK, Intent().putExtra(EXTRA_RESULT, result))
