@@ -4,7 +4,7 @@
 |---|---|
 | SDK | ClearCapture (`com.clearcapture.clearcapture`) |
 | Audience | Developers of apps that embed the SDK, and the SDK team |
-| Status | Revision 3 (14 November 2026): section 7.1, accessing, storing and uploading images |
+| Status | Revision 4 (14 November 2026): single-screen multi-photo sessions, location modes, storage and delivery alerts (section 7) |
 | Companions | `HLD.md`, `LLD.md`, `DESIGN_SYSTEM.md` |
 
 This document is the contract between the SDK and any app that uses it: what the host app must provide, what the SDK does for it, and who is responsible for what. Nothing here has been built yet; figures marked "target" must be confirmed during implementation.
@@ -101,7 +101,7 @@ In both modes the host can call `ClearCapture.checkReadiness(context)` at any ti
 
 | Situation | What the SDK does |
 |---|---|
-| First request | Shows a short reason screen, then the system dialog. Camera first, then location |
+| First request | A readiness panel on the capture screen lists what is missing with one reason each; one button asks for camera and location together in a single system step (revision 4) |
 | User denies once | Explains what will not work and offers to ask again |
 | User denies permanently, or the system stops showing the dialog | Explains, and offers a button to the app's system settings. On return, rechecks automatically |
 | User grants only approximate location | Explains that precise location is needed for evidence and asks for the upgrade. If refused: profiles that require location are blocked; if the user leaves, the host receives `Cancelled`, as it does whenever the user leaves the flow. `LOCATION_PRECISE_NOT_GRANTED` is never a result: it is a blocker reported by `checkReadiness` and listed in the `message` of `Failed(PERMISSION_MISSING)` in host-managed mode |
@@ -110,7 +110,8 @@ In both modes the host can call `ClearCapture.checkReadiness(context)` at any ti
 | Location services off | Asks the user to turn them on, with a route to the system setting. Rechecks on return |
 | Camera disabled by device policy | `CAMERA_DISABLED_BY_POLICY`; no request is shown because it cannot succeed, and the host receives `Failed(NOT_READY)` |
 | User leaves at the permission step | The host receives `Cancelled` |
-| Profile does not require location (`location.required = false` in the profile) | Location is not requested at all. All four bundled profiles require location |
+| Location not wanted (`LocationMode.OFF`, or a profile with `location.required = false`) | Location is not requested at all. All four bundled profiles require location; `LocationMode` overrides them per launch |
+| `LocationMode.OPTIONAL` and the worker refuses | Capture continues without GPS tags; each image says why (`locationNote`) |
 | Permissions already granted | No permission screen is shown |
 
 ### 5.4 What the host must do
@@ -146,27 +147,69 @@ Fast, synchronous, no UI, no side effects: it changes nothing and shows nothing,
 
 Missing permissions and location services being off are not fatal in `SDK_MANAGED` mode: the SDK resolves them with the user. In `HOST_MANAGED` mode any blocker stops the launch. The result each blocker gives at launch is in section 12.
 
-## 7. Launching and receiving the result
+## 7. Launching a capture session and receiving the result (revision 4)
+
+Revision 4 replaces the one-photo, multi-screen flow. Owner decisions of 14 November 2026: one capture screen, several photos per session, the host sets how many and where they are saved, location is the host's choice, and every failure to store or deliver is shown to the worker.
 
 ```kotlin
-// Kotlin
+// Kotlin. The Java form is the same through CaptureConfig.Builder.
 private val capture = registerForActivityResult(EvidenceCaptureContract()) { result ->
     when (result) {
-        is CaptureResult.Accepted  -> upload(result.imageUri, result.location, result.quality)
-        is CaptureResult.Cancelled -> Unit
+        is CaptureResult.Completed -> result.images.forEach { upload(it.uri, it.location, it.quality) }
+        is CaptureResult.Cancelled -> keepOrDelete(result.images)   // photos kept before the worker left
         is CaptureResult.Failed    -> show(result.code, result.message)
     }
 }
-capture.launch(CaptureConfig(profileId = "container"))
+capture.launch(
+    CaptureConfig(
+        shots = listOf(Shot("container", label = "Bin front"), Shot("vehicle", label = "Truck")),
+        minPhotos = 2,
+        maxPhotos = 4,
+        storage = StorageTarget.Directory(File(filesDir, "jobs/4711")),
+        locationMode = LocationMode.REQUIRED,
+        references = mapOf("jobId" to "4711", "binId" to "B-0093"),
+    ),
+)
 ```
 
-- The same contract works from Java and from Fragments.
-- The result survives rotation and process death because it is delivered through the Activity Result API.
-- `Accepted.imageUri` is a `file://` URI to a file in the host app's private storage. The file belongs to the host from that moment: the host uploads it, keeps it or deletes it.
-- If the host needs to hand the file to another app, `ClearCapture.getShareableUri(context, imageUri)` returns a `content://` URI from the SDK's own file provider (authority `${applicationId}.clearcapture.files`, so it cannot clash with the host's).
-- `CaptureConfig.outputDirectory`, when set, must be inside the app's private storage (`filesDir`, `cacheDir` or the app's external files directory). Anything else is an invalid configuration and throws `IllegalArgumentException` when the launch contract creates its Intent.
-- One capture per launch. To take several, launch again.
+### 7.0 The session
 
+| Topic | Behaviour |
+|---|---|
+| Screens | One capture screen. Readiness problems, the per-photo verdict and alerts are panels on that screen; there is no profile picker and no separate review screen |
+| Readiness | Checked together when the session opens and again whenever the app returns to the foreground: camera, permissions, location services, storage, profile. Everything the worker can fix is listed on the screen at once, with one action each; camera and location are requested in a single permission step |
+| Subject type | `shots` lists what each photo is (subject profile and an optional label such as "Bin front"). The screen shows "Photo 2 of 4: Vehicle". Photos beyond the list, or every photo when the list is empty, use `defaultProfileId` (General when not set), and the worker can switch subject with the selector on the screen when `allowSubjectChange` is true |
+| How many | `minPhotos` and `maxPhotos` (both 1 by default; equal values mean an exact count). The worker can finish once `minPhotos` photos are kept; the shutter stops at `maxPhotos` |
+| After each photo | All checks run on the saved file at once (sharpness, exposure, glare, framing, resolution, obstruction, location). A pass is kept automatically and shown in the thumbnail strip. A warning or failure opens a panel with the exact reason and advice, and Keep (when the rules allow, with a reason for an override) or Retake. A kept photo can be removed from the strip before finishing |
+| Finishing | "Done" when at least `minPhotos` are kept, or automatically at `maxPhotos`. Leaving earlier returns `Cancelled` with the photos already kept, so the host decides whether to keep them |
+| Interruptions | Kept photos are stored and recorded as soon as they are kept. Rotation, a call, the app going to the background or the process being killed never loses them: when the session reopens it continues with them, and the result always contains them |
+
+### 7.1a Location (host's choice)
+
+| `LocationMode` | Permission | In the photo | `CapturedImage.location` |
+|---|---|---|---|
+| `REQUIRED` (default) | Asked by the SDK (or by the host in host-managed mode); capture blocked until a usable fix | GPS tags written and verified | Never null |
+| `OPTIONAL` | Asked once; the worker may refuse | GPS tags when a fix is available | Null when unavailable; `locationNote` says why: `PERMISSION_DENIED`, `LOCATION_OFF`, `NO_FIX` |
+| `OFF` | Never asked | No GPS tags | Always null (`locationNote = NOT_REQUESTED`) |
+
+`LocationMode` overrides the profile's `location.required` for that launch.
+
+### 7.1b What each photo carries
+
+`CapturedImage`: `captureId`, `uri` (where it was saved, readable by the host), `profileId`, `label`, `quality` (verdict, score, every check with reason and metrics, override reason), `location` and `locationNote`, `capturedAtEpochMillis`, `timeSource` (`GPS` or `DEVICE`), `sha256` of the final file, `width`, `height`, `fileBytes`, and the host's `references`.
+
+- `references` (job, bin, vehicle IDs, at most 16 entries of 128 characters) are written into the JPEG (`ImageDescription` and `UserComment` as JSON), so the photo identifies its job even outside the app.
+- `output`: the host may cap the long side (for example 2560 px) and the JPEG quality to keep uploads small. Quality checks always run on the original, and EXIF is copied and verified after any re-encode.
+- `sha256` lets a server detect a changed file.
+
+### 7.1c Storage and delivery problems
+
+| Situation | What the worker sees | What the host receives |
+|---|---|---|
+| Free space below 150 MB when the session opens | Warning banner: photos may not save | Nothing; capture continues |
+| Free space below 50 MB | Shutter disabled; alert with "Free space, then try again" and "Finish with N photos" | If the worker finishes: `Completed` (min reached) or `Cancelled` with the kept photos |
+| Writing to the host's destination fails (folder missing or not writable, sink error, media store refused) | Alert naming the problem, with Retry; the photo stays safe in SDK storage meanwhile | If it never succeeds: the image is delivered from SDK storage with `deliveryNote = STORED_IN_FALLBACK` and the failure text, never lost |
+| A shareable link cannot be created | Not shown to the worker | `CapturedImage.uri` stays a file URI; `ClearCapture.getShareableUri` explains the failure in its exception, as a programming error |
 ### 7.1 Accessing, storing and uploading images (revision 3)
 
 Hosts need to find their photographs again, keep them where their own rules say, and get them to a server. The SDK covers all three without network code of its own and without storage or internet permissions.
@@ -184,11 +227,12 @@ Hosts need to find their photographs again, keep them where their own rules say,
 
 A host that supplied its own `CaptureRepository` reads its own store; `CaptureStore` then reads through that repository.
 
-**Where accepted images are saved.** `CaptureConfig.storage` chooses per launch:
+**Where kept images are saved.** `CaptureConfig.storage` chooses per launch, and the result gives a readable URI for each image so the host can preview, copy or upload it:
 
 | `StorageTarget` | Where the accepted JPEG goes | Permissions | Notes |
 |---|---|---|---|
 | `AppPrivate(subdirectory?)` (default) | `filesDir/cc_captures/yyyy/MM/dd/` or the named subfolder | None | Not visible to other apps or the gallery; removed with the app |
+| `Directory(folder)` | The host's own folder, created if missing | None for the app's internal or external files directories; any other folder must be writable by the app without extra permissions | Checked when the session opens: a folder that cannot be written is reported to the worker at once, not after the first photo |
 | `SharedPictures(album)` | MediaStore, `Pictures/<album>`, visible in the gallery | None on Android 10+; on Android 8–9 the host must hold `WRITE_EXTERNAL_STORAGE`, otherwise the result reports `Failed(STORAGE_FULL)` with the reason | EXIF and GPS tags are copied and verified after the copy. Location in a shared photo is visible to other apps: the host decides whether that is acceptable |
 | `HostSink` | Wherever the host's `CaptureImageSink` puts it | The host's | For a Storage Access Framework folder, an encrypted store, or the host's own directory layout |
 
@@ -257,19 +301,17 @@ Hosts that already have an upload pipeline ignore the artifact and upload from t
 
 | Result | Code | Meaning | Suggested host action |
 |---|---|---|---|
-| `Accepted` | | Image passed, or was accepted with a warning or an override | Use the image |
-| `Cancelled` | | The user left the flow at any point, including the permission step | Nothing |
-| `Failed` | `PERMISSION_MISSING` | Host-managed mode and something was not granted. `message` lists the blockers, which may include `LOCATION_PRECISE_NOT_GRANTED` | Ask, then relaunch |
-| `Failed` | `NOT_READY` | A fatal blocker: no camera, camera disabled by policy, unsupported ABI, a permission removed from the manifest, or no location provider when the profile requires location. In host-managed mode also location services switched off. `message` lists the blockers | Offer another way to proceed |
+| `Completed(images)` | | At least `minPhotos` photos were kept; each passed, or was kept with a warning or an override | Use the images |
+| `Cancelled(images)` | | The worker left before finishing; `images` holds any photos already kept (often empty) | Keep or delete them |
+| `Failed` | `PERMISSION_MISSING` | Host-managed mode and something was not granted | Ask, then relaunch |
+| `Failed` | `NOT_READY` | A fatal blocker (no camera, unsupported ABI, policy) | Offer another way to proceed |
 | `Failed` | `CAMERA_ERROR` | The camera could not be opened or used | Retry later |
-| `Failed` | `STORAGE_FULL` | Storage was low at launch, or the image could not be saved | Ask the user to free space |
-| `Failed` | `PROFILE_NOT_FOUND` | Unknown profile ID | Fix the integration |
+| `Failed` | `STORAGE_FULL` | Not enough space to start a session | Ask the user to free space |
+| `Failed` | `STORAGE_UNAVAILABLE` | The requested destination cannot be written (missing folder, no permission, media store unavailable) | Fix the destination |
+| `Failed` | `PROFILE_NOT_FOUND` | A subject profile in `shots` or `defaultProfileId` is unknown | Fix the integration |
 | `Failed` | `INTERNAL` | Unexpected error; details in the log | Report to the SDK team |
 
-`LOCATION_PRECISE_NOT_GRANTED` is never a result code. It is only a `Blocker` reported by `checkReadiness` and an entry in the `message` of `Failed(PERMISSION_MISSING)` in host-managed mode.
-
-The SDK never throws into the host for a runtime condition. Exceptions are reserved for programmer errors such as an invalid configuration object, for example a `CaptureConfig.outputDirectory` outside the app's private storage.
-
+The SDK never throws into the host for a runtime condition. Exceptions are reserved for programmer errors such as an invalid configuration object (`minPhotos` above `maxPhotos`, more than 16 references).
 ## 13. Host integration checklist
 
 1. Add the dependency and build. Confirm the merged manifest contains the three permissions.
