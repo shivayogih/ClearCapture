@@ -596,10 +596,22 @@ The permission screen is shown only in `SDK_MANAGED` mode and only when somethin
 internal interface QualityValidator {
     val check: QualityCheck
     val stages: Set<Stage>
-    /** Must not throw, must not keep references to the mats, must not allocate per call beyond the pool. */
-    fun validate(input: FrameMats, profile: CaptureProfile, stage: Stage): CheckResult
+    val needsOpenCv: Boolean get() = true          // false only for resolution (5.5)
+    val liveEveryNthFrame: Int get() = 1           // 3 for framing and obstruction (5.7)
+    fun appliesTo(profile: CaptureProfile): Boolean = true   // framing: false without a guide
+    /** Must not throw, must not keep references to the mats, must take working mats from the pool. */
+    fun validate(input: ValidationInput, profile: CaptureProfile): CheckResult
 }
+
+/** The stage, the frame's mats (absent when they could not be built) and, post-capture, facts about the file. */
+internal class ValidationInput(val stage: Stage, frame: FrameMats?, val savedImage: SavedImageFacts?)
 ```
+
+As built (milestone 4), the input is a `ValidationInput` rather than a bare `FrameMats`, because the resolution check works on the saved file and must still run when no mats can be built (D15). A validator that hits an OpenCV error returns `ANALYSIS_UNAVAILABLE` instead of throwing: `FAIL` post-capture, `WARNING` live.
+
+`ValidatorRegistry` is an internal object of `:core:quality` (not of `:capture:api`). `CaptureGraph` builds the analyzer with the public `createQualityAnalyzer(initializer: OpenCvInitializer, dispatcher, logger): QualityAnalyzer`; the `OpenCvInitializer` is process-scoped, the analyzer and its `MatPool` are flow-scoped. `OpenCvInitializer.initialize()` returns `OpenCvStatus` (`Loaded`, `Failed`); `:core:opencv` has no domain dependency, so `warmUp` maps `Failed` to `CaptureError.AnalyzerUnavailable`. On Android it calls `OpenCVLoader.initLocal()` on the injected dispatcher, once per process, and catches `LinkageError`.
+
+`MatPool` counts every mat it hands out (`outstanding`); validator tests assert the count is back to zero after each call. Mats up to 2 MB are kept for reuse (at most 16), larger ones are released at once, so post-capture analysis does not leave native memory in the pool.
 
 `FrameMats` lazily provides `gray`, `bgr`, `hsv`, the guide region in pixels (upright), and for the post-capture stage `sharpCrop`. Lazy means a mat is built only if a validator asks for it; live analysis never builds `bgr` or `hsv` unless glare is required.
 
@@ -609,6 +621,12 @@ internal interface QualityValidator {
 
 If OpenCV could not be loaded, `analyzeFile` still runs the resolution and integrity check (5.5), which does not need OpenCV, and reports every OpenCV-based required check (blur, exposure, glare, framing, obstruction) as `FAIL` with reason `ANALYSIS_UNAVAILABLE` and no metrics. The downgrade rule of section 6.1 does not apply to `ANALYSIS_UNAVAILABLE`, so the verdict is `FAIL` and the photo can be accepted only if the profile allows override.
 
+`analyzeLive` without OpenCV reports each required live check as `WARNING` / `ANALYSIS_UNAVAILABLE`, so an unavailable analyzer never disables the shutter (3.4).
+
+`analyzeFile` returns `Failure(FileUnreadable)` only when the file cannot be read or has no parseable JPEG header. A file whose header is readable but whose pixels do not decode gives a report: resolution `FAIL / FILE_CORRUPT`, and every OpenCV-based required check `FAIL / FILE_CORRUPT` with no metrics. Results are listed in registry order: blur, exposure, glare, framing, resolution, obstruction. `LOCATION` is never measured here.
+
+Live colour: the camera's YUV_420_888 is read as full-range JFIF YCbCr (U = Cb, V = Cr); the chroma planes (pixel stride 1 or 2) are upsampled bilinearly and converted with `COLOR_YCrCb2BGR`. This happens only when the glare check asks for `bgr` or `hsv`. The Y plane is wrapped without copying (direct buffers) and rotated upright by `rotationDegrees`.
+
 ### 5.0 Analysis images
 
 | Stage | Image the validators see |
@@ -617,6 +635,8 @@ If OpenCV could not be loaded, `analyzeFile` still runs the resolution and integ
 | Post-capture | The saved JPEG decoded once with subsampling to a normalised long side of about 2000 px. In addition `sharpCrop`: a 1024×1024 crop from the centre of the guide region, decoded at full resolution with a region decoder |
 
 Reasons: a full-resolution `Mat` of a high-megapixel photo, with the intermediate mats the checks need, can exceed the app's memory; and Laplacian variance changes with resolution, so a fixed analysis size keeps thresholds comparable between cameras. The full-resolution crop keeps the blur check sensitive to fine blur that subsampling would hide. The resolution check (5.5) always uses the real file dimensions.
+
+As built: `JpegDecoder` decodes with the largest power-of-two sample size that keeps the long side at or above 2000 px, then scales down to exactly 2000 px with `INTER_AREA`; smaller images are not upscaled. The EXIF orientation is applied to both images, so validators always see upright pixels; the crop is centred on the centre of the guide (of the image without a guide), clamped to the image, and mapped to stored coordinates for the region decoder. Pixel decoding is behind a small `ImageCodec` interface: `BitmapFactory` and `BitmapRegionDecoder` on Android, OpenCV `Imgcodecs` in JVM tests. Dimensions, EXIF orientation and the end-of-image marker are read by `JpegHeaderReader`, pure Kotlin, so they are available without OpenCV. If the region decode fails, blur uses the guide region of the analysis image.
 
 ### 5.1 Blur
 
@@ -630,6 +650,8 @@ Reasons: a full-resolution `Mat` of a high-megapixel photo, with the intermediat
 | Known failure cases | Smooth, plain subjects score low while in focus; heavy noise in low light scores high while blurred |
 
 Laplacian variance depends on resolution, so live and post-capture have separate thresholds.
+
+As built: the variance is taken directly on the `CV_16S` Laplacian (no clipping conversion). `tenengrad` and `dirRatio` use 3×3 Sobel (`CV_32F`) on the same region as `lapVarRegion`; `dirRatio` = Σgx² ÷ Σgy² (capped at 1000). The ratio reflects the scene as well as the blur: a subject with strongly one-directional texture (for example only vertical ribs) can make defocus read as `BLUR_MOTION`. The verdict is unaffected.
 
 ### 5.2 Exposure
 
@@ -664,6 +686,8 @@ Laplacian variance depends on resolution, so live and post-capture have separate
 | Metrics | `coverage`, `borderTouch` (0 or 1), `contourCount` |
 | Known failure cases | Busy backgrounds merge with the subject. Listed in `warningOnlyChecks` by default |
 
+As built: the 0.5 % size filter uses the contour's bounding-box area; `contourCount` is the number of contours that pass it; a contour "overlaps the guide" when its bounding box intersects the guide rectangle; the 2 % margin is taken from the image width for the left and right edges and from the height for the top and bottom. The reasons are checked in the order cut off, too small, too close, and are always `FAIL` (downgraded by the profile when framing is warning-only). Runs on the whole upright frame.
+
 ### 5.5 Resolution and integrity (post-capture only)
 
 | | |
@@ -671,7 +695,9 @@ Laplacian variance depends on resolution, so live and post-capture have separate
 | Input | The saved file |
 | Steps | 1. Decode bounds only. 2. Full decode succeeds. 3. Width and height against `minLongSide`, `minShortSide`. 4. File size against `minFileBytes`. 5. EXIF orientation is a valid value. 6. Dimensions match what the camera reported at bind time (no unexpected downscale) |
 | Verdict | `FILE_CORRUPT`, `LOW_RESOLUTION` or `ORIENTATION_INVALID`; always `FAIL` |
-| Metrics | `width`, `height`, `fileBytes` |
+| Metrics | `width`, `height`, `fileBytes`, `orientation`; `expectedLongSide` when known |
+
+As built, in this order: `FILE_CORRUPT` when the file has no end-of-image marker after its scan data (truncated) or when its pixels did not decode (decoding is only attempted when OpenCV is available); `ORIENTATION_INVALID` when the EXIF orientation is outside 1..8 (an absent tag is valid); `LOW_RESOLUTION` when the long or short side is below the minimum, when the file is smaller than `minFileBytes`, or when the long side is more than 2 % below `expectedCaptureLongSide` (the size the camera reported at bind time, an optional argument of `analyzeFile`).
 
 ### 5.6 Obstruction
 
@@ -686,9 +712,13 @@ Laplacian variance depends on resolution, so live and post-capture have separate
 
 Requiring the group to touch an image edge targets fingers and straps over the lens, which enter from the edge, and avoids flagging a plain subject in the middle.
 
+As built: the grid covers the analysed region (the guide, or the whole frame), so "touches an image edge" means touches the border of that grid; with a guide, the guide's border stands in for the image edge. Groups are 4-connected. Canny uses 80 / 160, the same as framing, on the unblurred grey region.
+
 ### 5.7 Complexity
 
 All live validators are linear in pixel count. At 640×480 the target is under 25 ms for blur and exposure together, and under 60 ms with glare, framing and obstruction. Framing and obstruction run on every third live frame. Post-capture, all checks together should finish within 1 s on the normalised image, leaving room in the 1.5 s verdict budget for decoding and EXIF work.
+
+Framing and obstruction run on frames 0, 3, 6, … of a profile and repeat their last result on the frames in between; a change of profile starts the count again. Measured times are produced by `ValidatorTimingTest` in `:core:quality` (`build/reports/validator-timings.md`). They are desktop-JVM numbers and say nothing yet about a tablet; device numbers come from the debug overlay and the benchmarks.
 
 ## 6. Scoring and profiles
 
@@ -697,6 +727,8 @@ All live validators are linear in pixel count. At 640×480 the target is under 2
 1. For each required check, take its result. If the check is in `warningOnlyChecks` and the result is `FAIL`, downgrade to `WARNING` (except `ANALYSIS_UNAVAILABLE`, section 5).
 2. Overall verdict = the worst result.
 3. Score = 100 minus 40 per `FAIL` and 15 per `WARNING`, floor 0. The score is for reporting and calibration; only the verdict gates acceptance.
+
+A downgraded result keeps its reason; it counts as a `WARNING` in the score. A report without results is `PASS` with score 100. In `:core:quality` the rule is implemented by the internal `QualityScoreCalculator`.
 
 ### 6.2 Profile JSON
 
@@ -750,6 +782,8 @@ All live validators are linear in pixel count. At 640×480 the target is under 2
   ]
 }
 ```
+
+The default thresholds above were exercised by the synthetic fixtures of milestone 4 (section 13) and gave the expected verdict on every fixture, live and post-capture, without change. They are still to be calibrated on real devices.
 
 A profile inherits `defaults` and overrides only what it lists. `location.required` is the single source of truth for the location requirement: the loader adds `LOCATION` to `requiredChecks` when it is true and removes it when it is false, so the two can never disagree. All four bundled profiles require location. The loader attaches `deviceOverrides` to every `CaptureProfile` unapplied; `ProfileResolver.resolve(profile, cameraTraits)` applies them last, once the camera reports its capabilities (`CameraState.Ready`), matched on camera characteristics, never on model name. Before that the base profile is used. An unknown `schemaVersion` or a profile that fails validation is rejected with a logged error and the bundled defaults are used.
 
