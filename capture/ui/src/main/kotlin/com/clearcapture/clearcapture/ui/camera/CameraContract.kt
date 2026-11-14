@@ -67,4 +67,7 @@ sealed interface CameraEffect {
     data object NavigateBack : CameraEffect
     data object OpenLocationSettings : CameraEffect
     data object HapticShutter : CameraEffect
+
+    /** A capture failed; the screen shows the message and action for [error] (LLD section 11). */
+    data class ShowError(val error: CaptureError) : CameraEffect
 }
