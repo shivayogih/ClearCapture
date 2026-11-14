@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Package | `com.clearcapture.clearcapture` |
-| Status | Draft for review, revision 4, SDK edition (13 November 2026) |
+| Status | Revision 5, SDK edition (14 November 2026): implementation notes in section 16 |
 | Date | 13 November 2026 |
 | Companions | `HLD.md`, `SDK_REQUIREMENTS.md`, `DESIGN_SYSTEM.md` |
 
@@ -73,7 +73,8 @@ The Kotlin in this document is design-level: it fixes names, shapes and contract
 
 :core:location        com.clearcapture.clearcapture.location
     FusedLocationSource, PlatformLocationSource, LocationFixPolicy,
-    AndroidExifStore, PermissionChecker
+    AndroidExifStore, LocationSources (fused or platform, chosen once per flow)
+    (readiness checks live in :capture:api, internal/readiness, because only the API module reports Blockers)
 
 :core:common          com.clearcapture.clearcapture.common
     AppDispatchers, Outcome, CaptureLogger (default no-op)
@@ -110,7 +111,8 @@ public sealed interface CaptureResult : Parcelable {
         val imageUri: Uri,                    // file:// URI to app-private storage
         val profileId: String,
         val quality: QualitySummary,
-        val location: GeoStamp,
+        val location: GeoStamp?,              // null only when the profile does not require location
+        val requestId: String,                // echoes CaptureConfig.requestId
         val capturedAtEpochMillis: Long,
     ) : CaptureResult
 
@@ -222,15 +224,14 @@ The SPI interfaces in `api.spi` and the data models they use are declared in `:c
 /**
  * Public SPI. Blocking and callable from Java. The SDK calls it off the main thread,
  * except from `checkReadiness`, which calls it on the caller's thread.
- * `CaptureProfileSpec` is the public profile data model of `api.spi`.
+ * It returns the profile file in the schema of section 6.2; invalid JSON is logged and the bundled profiles are used.
  */
-public interface CaptureProfileProvider {
-    public fun profiles(): List<CaptureProfileSpec>
-    public fun profile(id: String): CaptureProfileSpec?
+public fun interface CaptureProfileProvider {
+    public fun profilesJson(): String
 }
 ```
 
-The domain port of the same name (section 3.1) remains `suspend`; the adapter runs the blocking SPI call on the IO dispatcher.
+The SPI returns JSON in the documented schema rather than a public mirror of the profile model (revision 5): the schema is already the host-facing format, is versioned by `schemaVersion`, and keeps the public API small. A host can also ship `assets/clearcapture_profiles.json` instead of a provider. The domain port of the same name (section 3.1) remains `suspend`; `AssetCaptureProfileProvider` parses and caches on the IO dispatcher, and `checkReadiness` uses its blocking read.
 
 ```kotlin
 @RequiresOptIn(message = "Diagnostics are for test and calibration builds only.")
@@ -334,6 +335,7 @@ sealed interface LocationStatus {
     data object PermissionMissing : LocationStatus
     data object ProviderDisabled : LocationStatus
     data object Acquiring : LocationStatus
+    data object NotRequired : LocationStatus          // the profile does not need location (revision 5)
     data class Ready(val fix: LocationFix) : LocationStatus
     data class Stale(val fix: LocationFix) : LocationStatus
     data class Inaccurate(val fix: LocationFix) : LocationStatus
@@ -379,7 +381,8 @@ A `CaptureProfile` carries its `deviceOverrides` unapplied. `ProfileResolver.res
 ```kotlin
 interface CameraController {
     val state: StateFlow<CameraState>            // Idle, Starting, Ready(capabilities), Error
-    val frames: Flow<FrameData>                  // latest-only; collector must be fast
+    // Live frames are not a Flow (revision 5): CameraPreview hands each frame to a FrameConsumer on the
+    // analysis thread and closes it when the call returns, so no frame can outlive its ImageProxy.
     suspend fun takePicture(target: File, location: LocationFix?): Outcome<File, CaptureError>
     suspend fun focusAt(x: Float, y: Float)
     fun setTorch(enabled: Boolean)
@@ -792,7 +795,8 @@ stateDiagram-v2
 - `FusedLocationSource`: high-accuracy priority, 1 s interval. Used when Play Services is available.
 - `PlatformLocationSource`: `LocationManager` GPS provider, 1 s, 0 m. Used otherwise. Both sit behind `LocationSource`; the choice is made once in `CaptureGraph`.
 - Mock detection uses the platform's mock flag on the `Location`.
-- `LocationFixPolicy` is a pure function `(fix, policy, now) → LocationStatus`, unit-tested with a fake clock.
+- `LocationFixPolicy` is a pure function `(fix, policy, now) → LocationStatus`, unit-tested with a fake clock. It lives in `:capture:domain` (package `domain.location`), not `:core:location`, because `CaptureEvidenceUseCase` needs it for steps 1 and 5 and the domain cannot depend on an Android module (revision 5). It also owns `allowsCapture`, `blockReason` and the LOCATION `checkResult`.
+- Both sources re-evaluate their status every second, so a fix turns `Stale` on time and permission or location-services changes are noticed without extra callbacks.
 - Capture is enabled for `Ready`, and for `Inaccurate` or `Stale` only when the policy does not fail on them (the result is then a `WARNING`).
 
 ### 8.2 EXIF tags
