@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- One title and one piece of advice per reason code (LLD section 11). Plain words, no codes, no blame. -->
+    <string name="cc_reason_blur_motion_title">The photo is blurred</string>
+    <string name="cc_reason_blur_motion_advice">Hold the tablet steady and try again.</string>
+    <string name="cc_reason_blur_focus_title">The photo is out of focus</string>
+    <string name="cc_reason_blur_focus_advice">Tap the subject on the screen to focus, then try again.</string>
+    <string name="cc_reason_too_dark_title">The photo is too dark</string>
+    <string name="cc_reason_too_dark_advice">Move into the light or turn on the torch.</string>
+    <string name="cc_reason_too_bright_title">The photo is too bright</string>
+    <string name="cc_reason_too_bright_advice">Move out of direct sunlight or change your angle.</string>
+    <string name="cc_reason_glare_on_subject_title">Reflection on part of the subject</string>
+    <string name="cc_reason_glare_on_subject_advice">Change your angle if you can.</string>
+    <string name="cc_reason_subject_cut_off_title">The subject is cut off</string>
+    <string name="cc_reason_subject_cut_off_advice">Move back and fit it in the frame.</string>
+    <string name="cc_reason_subject_too_small_title">The subject is too small</string>
+    <string name="cc_reason_subject_too_small_advice">Move closer so it fills the frame.</string>
+    <string name="cc_reason_subject_too_close_title">The subject is too close</string>
+    <string name="cc_reason_subject_too_close_advice">Move back a little so all of it fits.</string>
+    <string name="cc_reason_low_resolution_title">The photo is too small</string>
+    <string name="cc_reason_low_resolution_advice">Take the photo again. If this keeps happening, tell your supervisor.</string>
+    <string name="cc_reason_file_corrupt_title">The photo could not be read</string>
+    <string name="cc_reason_file_corrupt_advice">Take the photo again.</string>
+    <string name="cc_reason_orientation_invalid_title">The photo has no valid orientation</string>
+    <string name="cc_reason_orientation_invalid_advice">Take the photo again.</string>
+    <string name="cc_reason_obstructed_title">Something is blocking the view</string>
+    <string name="cc_reason_obstructed_advice">Check that nothing covers the lens or the subject, then try again.</string>
+    <string name="cc_reason_location_permission_title">Location permission is missing</string>
+    <string name="cc_reason_location_permission_advice">Allow precise location to take evidence photos.</string>
+    <string name="cc_reason_location_disabled_title">Location is turned off</string>
+    <string name="cc_reason_location_disabled_advice">Turn on location to continue.</string>
+    <string name="cc_reason_location_no_fix_title">No location yet</string>
+    <string name="cc_reason_location_no_fix_advice">Wait for the location, ideally with a clear view of the sky.</string>
+    <string name="cc_reason_location_stale_title">The location is out of date</string>
+    <string name="cc_reason_location_stale_advice">Wait a moment for a fresh location, then try again.</string>
+    <string name="cc_reason_location_inaccurate_title">The location is not accurate enough</string>
+    <string name="cc_reason_location_inaccurate_advice">Move to a place with a clear view of the sky and try again.</string>
+    <string name="cc_reason_location_tags_missing_title">The location was not saved in the photo</string>
+    <string name="cc_reason_location_tags_missing_advice">Take the photo again.</string>
+    <string name="cc_reason_location_mock_title">The location may not be real</string>
+    <string name="cc_reason_location_mock_advice">This photo will be flagged for review.</string>
+    <string name="cc_reason_analysis_unavailable_title">The photo could not be checked on this device</string>
+    <string name="cc_reason_analysis_unavailable_advice">Take the photo again. If this keeps happening, tell your supervisor.</string>
+
+    <!-- Error catalogue (LLD section 11). -->
+    <string name="cc_error_camera_unavailable">Camera is not available on this device</string>
+    <string name="cc_error_camera_in_use">Camera is being used by another app</string>
+    <string name="cc_error_capture_failed">Could not take the photo</string>
+    <string name="cc_error_storage_full">Storage is full</string>
+    <string name="cc_error_file_unreadable">The photo could not be read</string>
+    <string name="cc_error_location_permission">Location permission is needed to take evidence photos</string>
+    <string name="cc_error_location_disabled">Turn on location to continue</string>
+    <string name="cc_error_location_no_fix">Waiting for location…</string>
+    <string name="cc_error_analyzer_unavailable">Live guidance is not available</string>
+</resources>
