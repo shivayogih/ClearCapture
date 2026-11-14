@@ -966,3 +966,25 @@ Benchmarks (`:benchmark`): cold start; profile screen to first preview frame; sh
 | Errors | `CcStatusScreen` |
 
 `HintUi`, `GuideStatus`, `LocationChipUi` and `VerdictUi` in section 4 map one-to-one to the component states. `ClearCaptureTheme` is applied once, at the root of the SDK Activity and of the navigation destination, with a `CcAppearance` that `:capture:api` maps from the `Appearance` in the configuration. The SDK always uses this theme and never the host's `MaterialTheme`.
+
+## 16. Implementation notes (revision 5)
+
+Decisions taken while implementing milestones 3 to 8, kept here so the design and the code agree. Each is small and keeps the intent of the sections above.
+
+| # | Area | What the code does | Why |
+|---|---|---|---|
+| 1 | Profile SPI (section 2) | `CaptureProfileProvider.profilesJson(): String` in the schema of section 6.2 | The schema is already the host format and is versioned; a mirrored public model would double the public surface |
+| 2 | `CaptureResult.Accepted` (section 2) | `location` is nullable; `requestId` is echoed | A profile with `location.required = false` has no fix (finding left open in `DESIGN_REVIEW.md`); hosts match results to requests |
+| 3 | Live frames (sections 3.1, 7) | `CameraController` has no `frames` flow; `CameraPreview` hands frames to a `FrameConsumer` on the analysis thread | A frame cannot outlive its `ImageProxy`, which a buffered flow would allow |
+| 4 | `LocationStatus` (section 3) | Adds `NotRequired` | The chip and the gating rule need to tell "not needed" from "acquiring" |
+| 5 | Location rules (section 8.1) | `LocationFixPolicy` is in `:capture:domain` and also owns `allowsCapture`, `blockReason` and the LOCATION `checkResult` | `CaptureEvidenceUseCase` needs them; the domain cannot depend on `:core:location` |
+| 6 | Score rules (section 6.1) | `QualityScoreCalculator` is in `:capture:domain` (`domain.quality`) | Step 7 of section 3.3 recalculates after adding the LOCATION result |
+| 7 | Readiness (section 2) | `ReadinessChecker` and `LaunchDecision` in `:capture:api` (`internal/readiness`) over a read-only `ReadinessEnvironment`; `PermissionChecker` in `:core:location` is not needed | Blockers are an API type; the environment interface makes every blocker unit-testable |
+| 8 | Launch failures (section 2) | Immediate `Failed` results come from `EvidenceCaptureContract.getSynchronousResult`, so no Activity starts | "Without showing a screen" holds literally |
+| 9 | Permission step (section 4.3) | `PermissionReducer` is a pure state machine over `PermissionSnapshot`; the screen passes `shouldShowRequestPermissionRationale` with each result | Every row of `SDK_REQUIREMENTS.md` 5.3 is unit-tested without a device |
+| 10 | Live pipeline (section 3.2) | `LiveAnalysisPipeline` runs `analyzeLive` on the analysis thread and publishes the latest report and timing; `ObserveLiveQualityUseCase` combines it with location and samples to 10 updates a second | The pipeline is the `FrameConsumer` of note 3 and feeds the adaptive step-down and the debug overlay |
+| 11 | Pending captures (section 4.2) | `PendingCaptures` holds pending photos per flow; review loads by ID and returns to the camera if the ID is gone (process death) | The review route carries only the ID |
+| 12 | Accept result (section 3.2) | `AcceptCaptureUseCase` returns `Outcome<AcceptedCapture, AcceptError>` (`NotAllowed`, `Storage`) | Errors are typed values, never exceptions |
+| 13 | Capture record (section 9) | `CaptureEntity.verdict`, `score`, `analysisMillis` and image fields are nullable, and `orientation` is stored | A `FAILED` attempt has no report or image |
+| 14 | GPS time tag (section 8.2) | `GPSTimeStamp` is written and read as `HH:mm:ss` | `ExifInterface` rejects the rational form when setting the tag; found by the instrumented round-trip test |
+| 15 | Hints (section 3.4) | `SUBJECT_TOO_CLOSE` has its own hint after `SUBJECT_TOO_SMALL`; location is re-checked on every guidance update, so losing the fix disables the shutter without waiting for the hint hold | The validator reports it; gating must never lag a lost fix |
