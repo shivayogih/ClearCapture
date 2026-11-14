@@ -16,6 +16,7 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.androidx.exifinterface)
 
     testImplementation(testFixtures(project(":capture:domain")))
 }

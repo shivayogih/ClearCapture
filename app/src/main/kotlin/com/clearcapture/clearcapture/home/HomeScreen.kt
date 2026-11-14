@@ -54,6 +54,10 @@ internal fun HomeScreen(onOpenGallery: () -> Unit, modifier: Modifier = Modifier
             }
         }
         OutlinedButton(
+            onClick = { capture.launch(CaptureConfig(profileId = "general", allowOverrideOnFail = true)) },
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text(stringResource(R.string.home_capture_override)) }
+        OutlinedButton(
             onClick = { readiness = ClearCapture.checkReadiness(context).toString() },
             modifier = Modifier.fillMaxWidth(),
         ) { Text(stringResource(R.string.home_check_readiness)) }

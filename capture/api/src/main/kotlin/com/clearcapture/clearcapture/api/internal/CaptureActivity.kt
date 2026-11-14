@@ -8,6 +8,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -45,6 +48,7 @@ internal class CaptureActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        hideSystemBars()
         val runtime = ClearCapture.runtime(applicationContext)
         if (savedInstanceState == null) emitEvent(CaptureEvent.FlowOpened(config.requestId, config.profileId))
         val start = StartDestination.of(runtime.readinessChecker.check(config.profileId), config.profileId)
@@ -61,6 +65,14 @@ internal class CaptureActivity : ComponentActivity() {
             ) {
                 CaptureNavGraph(host)
             }
+        }
+    }
+
+    /** The preview is the screen (DESIGN_SYSTEM 1): system bars stay hidden and return briefly on a swipe. */
+    private fun hideSystemBars() {
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            hide(WindowInsetsCompat.Type.systemBars())
         }
     }
 

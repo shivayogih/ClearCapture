@@ -58,6 +58,16 @@ object PermissionReducer {
         PermissionStep.Done -> PermissionEffect.Granted
     }
 
+    /** The effect of the action on [kind]'s card. */
+    fun cardEffect(state: PermissionUiState, kind: PermissionKind): PermissionEffect? {
+        val grant = if (kind == PermissionKind.CAMERA) state.camera else state.location
+        return when (grant) {
+            null, Grant.GRANTED -> null
+            Grant.PERMANENTLY_DENIED, Grant.PRECISE_REFUSED -> PermissionEffect.OpenAppSettings
+            Grant.NOT_ASKED, Grant.DENIED, Grant.APPROXIMATE_ONLY -> request(kind)
+        }
+    }
+
     /** Computes the single step to show from the grants. */
     fun PermissionUiState.withStep(): PermissionUiState = copy(step = stepFor(this))
 

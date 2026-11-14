@@ -42,9 +42,12 @@ class AndroidExifStore(
             }
             // CameraX does not write the accuracy tag; it is always ours.
             exif.setAttribute(ExifInterface.TAG_GPS_H_POSITIONING_ERROR, rational(fix.accuracyMeters.toDouble()))
+            val now = System.currentTimeMillis()
             if (exif.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL) == null) {
-                val now = System.currentTimeMillis()
                 exif.setAttribute(ExifInterface.TAG_DATETIME_ORIGINAL, local("yyyy:MM:dd HH:mm:ss", now))
+            }
+            // CameraX writes DateTimeOriginal but not its UTC offset, so the offset is checked on its own.
+            if (exif.getAttribute(ExifInterface.TAG_OFFSET_TIME_ORIGINAL) == null) {
                 exif.setAttribute(ExifInterface.TAG_OFFSET_TIME_ORIGINAL, local("XXX", now))
             }
             exif.saveAttributes()

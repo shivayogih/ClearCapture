@@ -1,6 +1,10 @@
 package com.clearcapture.clearcapture.ui.review
 
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Matrix
+import androidx.exifinterface.media.ExifInterface
+import java.io.IOException
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -85,7 +89,16 @@ private fun decodePreview(path: String): ImageBitmap? {
     BitmapFactory.decodeFile(path, bounds)
     var sample = 1
     while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= PREVIEW_LONG_SIDE) sample *= 2
-    return BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = sample })?.asImageBitmap()
+    val bitmap = BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = sample }) ?: return null
+    // The JPEG stores sensor-oriented pixels plus an EXIF orientation; turn them upright for display.
+    val degrees = try {
+        ExifInterface(path).rotationDegrees
+    } catch (_: IOException) {
+        0
+    }
+    if (degrees == 0) return bitmap.asImageBitmap()
+    val matrix = Matrix().apply { postRotate(degrees.toFloat()) }
+    return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true).asImageBitmap()
 }
 
 @Composable

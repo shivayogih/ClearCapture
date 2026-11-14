@@ -23,6 +23,7 @@ class PermissionViewModel(
         when (intent) {
             PermissionIntent.Recheck -> recheck()
             PermissionIntent.PrimaryAction -> PermissionReducer.primaryEffect(state.value)?.let(::emit)
+            is PermissionIntent.CardAction -> PermissionReducer.cardEffect(state.value, intent.kind)?.let(::emit)
             is PermissionIntent.RequestResult -> {
                 setState { PermissionReducer.onRequestResult(it, intent.kind, snapshot(), intent.rationale) }
                 notifyIfDone()

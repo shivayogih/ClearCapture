@@ -152,6 +152,30 @@ class PermissionViewModelTest {
     }
 
     @Test
+    fun `each card asks for its own permission, out of order if the user chooses`() = runTest {
+        val vm = viewModel()
+        vm.effects.test {
+            vm.onIntent(PermissionIntent.CardAction(PermissionKind.LOCATION))
+            assertThat(awaitItem()).isEqualTo(PermissionEffect.LaunchRequest(PermissionKind.LOCATION, listOf(FINE_LOCATION, COARSE_LOCATION)))
+            vm.onIntent(PermissionIntent.CardAction(PermissionKind.CAMERA))
+            assertThat(awaitItem()).isEqualTo(PermissionEffect.LaunchRequest(PermissionKind.CAMERA, listOf(CAMERA)))
+        }
+    }
+
+    @Test
+    fun `a permanently denied card opens settings and a granted card does nothing`() = runTest {
+        system = system.copy(fineLocation = true, coarseLocation = true)
+        val vm = viewModel()
+        vm.onIntent(PermissionIntent.RequestResult(PermissionKind.CAMERA, mapOf(CAMERA to false)))
+        vm.effects.test {
+            vm.onIntent(PermissionIntent.CardAction(PermissionKind.CAMERA))
+            assertThat(awaitItem()).isEqualTo(PermissionEffect.OpenAppSettings)
+            vm.onIntent(PermissionIntent.CardAction(PermissionKind.LOCATION))
+            expectNoEvents()
+        }
+    }
+
+    @Test
     fun `leaving cancels`() = runTest {
         val vm = viewModel()
         vm.effects.test {

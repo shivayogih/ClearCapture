@@ -90,6 +90,9 @@ sealed interface PermissionIntent {
     /** The primary action of the current step (ask, ask again, open settings). */
     data object PrimaryAction : PermissionIntent
 
+    /** The action on one permission's card: ask for it, or open settings when only settings can help. */
+    data class CardAction(val kind: PermissionKind) : PermissionIntent
+
     /** The system dialog for [kind] closed. [rationale] is `shouldShowRequestPermissionRationale` per permission. */
     data class RequestResult(val kind: PermissionKind, val rationale: Map<String, Boolean>) : PermissionIntent
 

@@ -4,7 +4,7 @@
 |---|---|
 | SDK | ClearCapture (`com.clearcapture.clearcapture`) |
 | Audience | Developers of apps that embed the SDK, and the SDK team |
-| Status | Draft for review, revision 2 (13 November 2026) |
+| Status | Revision 3 (14 November 2026): section 7.1, accessing, storing and uploading images |
 | Companions | `HLD.md`, `LLD.md`, `DESIGN_SYSTEM.md` |
 
 This document is the contract between the SDK and any app that uses it: what the host app must provide, what the SDK does for it, and who is responsible for what. Nothing here has been built yet; figures marked "target" must be confirmed during implementation.
@@ -22,6 +22,7 @@ The host does not need Compose, Hilt, Kotlin coroutines knowledge or any camera 
 | `com.clearcapture:clearcapture` | The whole SDK: capture flow in its own Activity, public API, design system, OpenCV | Every host |
 | `com.clearcapture:clearcapture-compose` | A navigation destination so the flow can live inside the host's Compose navigation graph (module `:capture:compose`; depends on `clearcapture`) | Only hosts that want in-graph navigation |
 | `com.clearcapture:clearcapture-testing` | Fakes: a launcher that returns canned results without a camera (module `:capture:testing`; depends on `clearcapture`) | Host UI tests |
+| `com.clearcapture:clearcapture-upload` | Offline-first upload queue on WorkManager; the host supplies the transport (module `:capture:upload`; depends on `clearcapture`). No network code, no internet permission | Hosts that want the SDK to manage uploads (section 7.1) |
 
 The internal modules (`:capture:api`, `:capture:ui`, `:capture:domain`, `:capture:data`, `:core:*`, `:designsystem`) are published as one AAR so hosts see a single dependency and cannot reach internals. The plan is to use the Android Gradle Plugin's fused-library publishing for this; that must be verified against the resolved AGP version in the packaging milestone, with separate internal artifacts under the same version as the fallback.
 
@@ -165,6 +166,44 @@ capture.launch(CaptureConfig(profileId = "container"))
 - If the host needs to hand the file to another app, `ClearCapture.getShareableUri(context, imageUri)` returns a `content://` URI from the SDK's own file provider (authority `${applicationId}.clearcapture.files`, so it cannot clash with the host's).
 - `CaptureConfig.outputDirectory`, when set, must be inside the app's private storage (`filesDir`, `cacheDir` or the app's external files directory). Anything else is an invalid configuration and throws `IllegalArgumentException` when the launch contract creates its Intent.
 - One capture per launch. To take several, launch again.
+
+### 7.1 Accessing, storing and uploading images (revision 3)
+
+Hosts need to find their photographs again, keep them where their own rules say, and get them to a server. The SDK covers all three without network code of its own and without storage or internet permissions.
+
+**Accessing images.** `ClearCapture.captures(context)` returns a `CaptureStore`, callable from Java:
+
+| Call | What it does |
+|---|---|
+| `list(filter)` | Accepted captures, newest first, each with `captureId`, image URI, profile, verdict and checks, location, capture time and upload state. Filter by profile, time range and upload state |
+| `get(captureId)` | One capture |
+| `openFile(captureId)` | The JPEG as a `File`, for reading or copying |
+| `shareableUri(captureId)` | A `content://` URI for handing to another app (same provider as `getShareableUri`) |
+| `delete(captureId)`, `purgeOlderThan(epochMillis)` | Remove files and records; retention stays the host's decision |
+| `observe(listener)` | Change notifications, for a host screen that lists captures |
+
+A host that supplied its own `CaptureRepository` reads its own store; `CaptureStore` then reads through that repository.
+
+**Where accepted images are saved.** `CaptureConfig.storage` chooses per launch:
+
+| `StorageTarget` | Where the accepted JPEG goes | Permissions | Notes |
+|---|---|---|---|
+| `AppPrivate(subdirectory?)` (default) | `filesDir/cc_captures/yyyy/MM/dd/` or the named subfolder | None | Not visible to other apps or the gallery; removed with the app |
+| `SharedPictures(album)` | MediaStore, `Pictures/<album>`, visible in the gallery | None on Android 10+; on Android 8–9 the host must hold `WRITE_EXTERNAL_STORAGE`, otherwise the result reports `Failed(STORAGE_FULL)` with the reason | EXIF and GPS tags are copied and verified after the copy. Location in a shared photo is visible to other apps: the host decides whether that is acceptable |
+| `HostSink` | Wherever the host's `CaptureImageSink` puts it | The host's | For a Storage Access Framework folder, an encrypted store, or the host's own directory layout |
+
+`CaptureImageSink` is a host interface set in `CaptureDependencies`. After accept, the SDK calls `store(image: AcceptedImage): SinkResult` on a background thread with the verified file and its metadata; the host copies or moves it and returns the final URI, or a failure that the SDK reports in the result. The app-private copy is kept until the sink succeeds, so nothing is lost if the host's storage is full.
+
+**Uploading.** The core SDK makes no network calls. The optional artifact `com.clearcapture:clearcapture-upload` adds an offline-first upload queue:
+
+- The host supplies an `UploadTransport` (its own HTTP client, cloud SDK, or signed-URL upload). The artifact has no network code and declares no internet permission; the host app already has both.
+- `ClearCaptureUpload.enqueue(captureId)`, or `UploadPolicy.AUTOMATIC` to queue every accepted capture.
+- Built on WorkManager: runs when connected (optionally unmetered or charging), retries with exponential backoff, survives restarts and reboots, uploads one file at a time with a configurable concurrency.
+- Each capture carries an upload state (`NOT_QUEUED`, `QUEUED`, `UPLOADING`, `UPLOADED`, `FAILED`) and the last error, readable through `CaptureStore` and observable.
+- Optional `deleteLocalAfterUpload` for devices with little storage.
+- The transport receives the file plus a metadata object (profile, verdict, checks, location, times, device) so the server can store the evidence context with the image.
+
+Hosts that already have an upload pipeline ignore the artifact and upload from the `Accepted` result or from `CaptureStore`.
 
 ## 8. Customisation
 

@@ -55,6 +55,7 @@
     <string name="home_title">ClearCapture POC</string>
     <string name="home_capture_choose">Capture: choose profile</string>
     <string name="home_capture_profile">Capture: %1$s</string>
+    <string name="home_capture_override">Capture: general, failed checks may be overridden</string>
     <string name="home_check_readiness">Check readiness</string>
     <string name="home_gallery">Design system gallery</string>
     <string name="home_last_result">Last result</string>

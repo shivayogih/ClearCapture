@@ -1,6 +1,6 @@
 # ClearCapture: build status
 
-Updated with every milestone commit. Last update: 14 November 2026.
+Updated with every milestone commit. Last update: 14 November 2026, after the first emulator run of the full flow.
 
 **Legend:** ✅ finished · 🔄 in progress · ⏳ pending · ⚠️ needs a person or a device
 
@@ -23,12 +23,13 @@ Updated with every milestone commit. Last update: 14 November 2026.
 | 3 | Design review | ✅ | `docs/DESIGN_REVIEW.md`, 33 findings applied; LLD revision 5 notes | |
 | 4 | M1 skeleton | ✅ | 13 modules, convention plugins, architecture and injection checks, CI, bootstrap scripts | |
 | 5 | M2 design system | ✅ | Tokens, 14 components, 236 screenshot goldens, contrast tests, raw-value check, gallery | ⚠️ Gallery screenshots on a device |
-| 6 | M3 permissions, readiness, preview, profiles | 🔄 | Profile JSON loader, readiness and launch rules, permission state machine (all 5.3 rows), CameraX binder and preview, all ViewModels | Screens being wired: SDK Activity, contract, navigation, `CaptureGraph`; ⚠️ device checks |
+| 6 | M3 permissions, readiness, preview, profiles | ✅ | All of it, wired: SDK Activity, contract, navigation, composition root. Verified on the emulator: readiness, first request, approximate-only and the upgrade to precise, preview with the container guide | ⚠️ Permanent denial, location off and policy rows still to run on a device |
 | 7 | M4 OpenCV and validators | ✅ | Six validators, analyzer, fixtures, timings, 16 KB check passed, release APK 25.5 MB with OpenCV | ⚠️ OpenCV smoke test on a device |
 | 8 | M5 live validation and hints | 🔄 | Hint priority and stabiliser, live pipeline, guidance use case, gating rule | Wiring to the screen; adaptive step-down of analysis resolution; ⚠️ timings on a device |
-| 9 | M6 capture and review | 🔄 | Capture, accept and discard use cases; review ViewModel; file store; text for every reason | Review screen wiring; haptics; ⚠️ capture on a device |
-| 10 | M7 location | 🔄 | Location rules, fused and platform sources, EXIF store (verified on emulator) | Wiring; ⚠️ time-to-first-fix outdoors |
+| 9 | M6 capture and review | 🔄 | Wired and verified on the emulator: shutter, saved JPEG, post-capture checks, review with the reason and advice for every check | Accept and retake run on the emulator (in progress); ⚠️ timings on a tablet |
+| 10 | M7 location | ✅ | Wired. GPS tags verified inside a real capture: coordinates match the fix within 0.000002°, altitude, GPS time, method, accuracy. CameraX writes coordinates, altitude, GPS time and method, DateTimeOriginal; the SDK adds accuracy and OffsetTimeOriginal (bug found on the emulator and fixed) | ⚠️ Time to first fix outdoors with no network |
 | 11 | M8 persistence and POC tooling | 🔄 | Room repository (verified on emulator) | `CaptureDiagnostics`, debug overlay, tuning screen, capture log, export, device capability screen |
+| new | Image access, storage targets, upload queue | ⏳ | Designed in `SDK_REQUIREMENTS.md` 7.1 | `CaptureStore`, `StorageTarget` (app-private, shared Pictures, host sink), `clearcapture-upload` with WorkManager |
 | 12 | M9 performance | ⏳ | | Macrobenchmark, Baseline Profile, StrictMode, LeakCanary, ⚠️ measurements on a tablet |
 | 13 | M10 SDK packaging | ⏳ | | Public API audit and dump, fused AAR, four sample hosts, `INTEGRATION.md`, `RELEASE.md` |
 | 14 | Acceptance | ⏳ | | `ACCEPTANCE.md`, ⚠️ field run and calibration with your labelled photos |

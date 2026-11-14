@@ -63,6 +63,19 @@ class AndroidExifStoreTest {
     }
 
     @Test
+    fun addsTheOffsetWhenTheCameraWroteOnlyTheTime() = runBlocking {
+        val file = jpeg("camerax.jpg")
+        ExifInterface(file).apply {
+            setAttribute(ExifInterface.TAG_DATETIME_ORIGINAL, "2026:11:14 08:19:40")
+            saveAttributes()
+        }
+        store.writeLocation(file, fix)
+        val exif = ExifInterface(file)
+        assertThat(exif.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL)).isEqualTo("2026:11:14 08:19:40")
+        assertThat(exif.getAttribute(ExifInterface.TAG_OFFSET_TIME_ORIGINAL)).matches("[+-]\\d{2}:\\d{2}")
+    }
+
+    @Test
     fun copiesTagsToAReEncodedFile() = runBlocking {
         val original = jpeg("original.jpg")
         store.writeLocation(original, fix)

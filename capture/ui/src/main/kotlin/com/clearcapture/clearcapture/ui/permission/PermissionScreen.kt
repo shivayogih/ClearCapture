@@ -40,7 +40,7 @@ fun PermissionScreen(state: PermissionUiState, onIntent: (PermissionIntent) -> U
             title = stringResource(R.string.cc_permission_camera_title),
             reason = stringResource(R.string.cc_permission_camera_reason),
             state = state.camera.toCard(),
-            onAction = { onIntent(PermissionIntent.PrimaryAction) },
+            onAction = { onIntent(PermissionIntent.CardAction(PermissionKind.CAMERA)) },
             icon = CcIcons.Camera,
         )
         state.location?.let { location ->
@@ -48,7 +48,7 @@ fun PermissionScreen(state: PermissionUiState, onIntent: (PermissionIntent) -> U
                 title = stringResource(R.string.cc_permission_location_title),
                 reason = stringResource(R.string.cc_permission_location_reason),
                 state = location.toCard(),
-                onAction = { onIntent(PermissionIntent.PrimaryAction) },
+                onAction = { onIntent(PermissionIntent.CardAction(PermissionKind.LOCATION)) },
                 icon = CcIcons.Location,
             )
         }
