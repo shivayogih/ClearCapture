@@ -23,9 +23,12 @@ import com.clearcapture.clearcapture.ui.common.BodyText
 import com.clearcapture.clearcapture.ui.common.TitleText
 import com.clearcapture.clearcapture.designsystem.R as DsR
 
-/** The permission step: one card per permission, then the one thing to do now. Stateless. */
+/**
+ * Everything that must be fixed before the camera can open, listed together on the capture screen
+ * (SDK_REQUIREMENTS 7.0): one card per permission with its state, then the one main action. Stateless.
+ */
 @Composable
-fun PermissionScreen(state: PermissionUiState, onIntent: (PermissionIntent) -> Unit, modifier: Modifier = Modifier) {
+fun ReadinessPanel(state: PermissionUiState, onIntent: (PermissionIntent) -> Unit, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -46,7 +49,9 @@ fun PermissionScreen(state: PermissionUiState, onIntent: (PermissionIntent) -> U
         state.location?.let { location ->
             CcPermissionCard(
                 title = stringResource(R.string.cc_permission_location_title),
-                reason = stringResource(R.string.cc_permission_location_reason),
+                reason = stringResource(
+                    if (state.locationOptional) R.string.cc_permission_location_reason_optional else R.string.cc_permission_location_reason,
+                ),
                 state = location.toCard(),
                 onAction = { onIntent(PermissionIntent.CardAction(PermissionKind.LOCATION)) },
                 icon = CcIcons.Location,
@@ -76,15 +81,14 @@ private fun Grant.toCard(): CcPermissionState = when (this) {
 }
 
 private fun PermissionStep.message(): Int = when (this) {
-    is PermissionStep.Explain ->
-        if (kind == PermissionKind.CAMERA) R.string.cc_permission_step_explain_camera else R.string.cc_permission_step_explain_location
+    is PermissionStep.Explain -> R.string.cc_permission_step_explain_all
     is PermissionStep.Denied ->
         if (kind == PermissionKind.CAMERA) R.string.cc_permission_step_denied_camera else R.string.cc_permission_step_denied_location
     is PermissionStep.PermanentlyDenied -> R.string.cc_permission_step_permanent
     PermissionStep.PreciseNeeded -> R.string.cc_permission_step_precise
     PermissionStep.PreciseRefused -> R.string.cc_permission_step_precise_refused
     PermissionStep.LocationServicesOff -> R.string.cc_permission_step_location_off
-    PermissionStep.Done -> R.string.cc_permission_step_explain_camera
+    PermissionStep.Done -> R.string.cc_permission_step_explain_all
 }
 
 private fun PermissionStep.action(): Int = when (this) {

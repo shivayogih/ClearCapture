@@ -37,29 +37,43 @@ data class PendingCapture(
     val report: QualityReport,
     val fix: LocationFix?,
     val capturedAtEpochMillis: Long,
+    val label: String? = null,
+    val locationNote: LocationNote = LocationNote.NONE,
 )
 
 /** What the domain hands back when a capture is accepted. No `:capture:api` types. */
 data class AcceptedCapture(
     val captureId: String,
-    val file: File,
+    /** The stored file when the destination is a file; `null` for a media-store or host-sink destination. */
+    val file: File?,
+    /** Where the photograph was stored, readable by the host: a `file://` or `content://` URI. */
+    val uri: String,
     val profileId: String,
     val report: QualityReport,
     val overrideReason: String?,
     val fix: LocationFix?,
     val capturedAtEpochMillis: Long,
+    val label: String? = null,
+    val locationNote: LocationNote = LocationNote.NONE,
+    val sha256: String = "",
+    val width: Int = 0,
+    val height: Int = 0,
+    val fileBytes: Long = 0,
+    val gpsTime: Boolean = false,
+    /** Set when the host's destination failed and the photo was kept in SDK storage instead. */
+    val deliveryNote: String? = null,
 )
 
 /** Failure codes a flow can end with. Mapped one-to-one to `CaptureResult.Failed.code`. */
-enum class FailureCode { PERMISSION_MISSING, NOT_READY, CAMERA_ERROR, STORAGE_FULL, PROFILE_NOT_FOUND, INTERNAL }
+enum class FailureCode { PERMISSION_MISSING, NOT_READY, CAMERA_ERROR, STORAGE_FULL, STORAGE_UNAVAILABLE, PROFILE_NOT_FOUND, INTERNAL }
 
 /** How a run of the flow ended. `:capture:api` maps it to the public `CaptureResult`. */
 sealed interface FlowOutcome {
-    /** The user accepted a photograph. */
-    data class Accepted(val capture: AcceptedCapture) : FlowOutcome
+    /** The session finished with at least the minimum number of kept photographs. */
+    data class Completed(val captures: List<AcceptedCapture>) : FlowOutcome
 
-    /** The user left the flow. */
-    data object Cancelled : FlowOutcome
+    /** The worker left early; [captures] are the photographs already kept, often none. */
+    data class Cancelled(val captures: List<AcceptedCapture> = emptyList()) : FlowOutcome
 
     /** The flow could not run or could not finish. */
     data class Failed(val code: FailureCode, val detail: String) : FlowOutcome

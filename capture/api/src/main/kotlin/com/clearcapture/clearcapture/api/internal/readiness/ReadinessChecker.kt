@@ -13,7 +13,20 @@ internal class ReadinessChecker(
     private val profiles: () -> List<CaptureProfile>,
 ) {
 
+    /** Readiness for one profile, or for any profile the worker may pick when [profileId] is `null`. */
     fun check(profileId: String?): Readiness {
+        val all = profiles()
+        val profile = profileId?.let { id -> all.firstOrNull { it.id == id } }
+        // Without a chosen profile the user may pick any, so location is needed if any profile needs it.
+        val locationRequired = profile?.location?.required ?: all.any { it.location.required }
+        return check(setOfNotNull(profileId), locationRequired)
+    }
+
+    /**
+     * Readiness for a session that uses [profileIds] (unknown ones are [Blocker.PROFILE_NOT_FOUND]). Location blockers
+     * are reported only when [locationRequired]: an optional or switched-off location never blocks.
+     */
+    fun check(profileIds: Set<String>, locationRequired: Boolean): Readiness {
         val blockers = sortedSetOf<Blocker>()
         if (!environment.declaredPermissions().containsAll(SDK_PERMISSIONS)) blockers += Blocker.PERMISSION_REMOVED_FROM_MANIFEST
 
@@ -24,11 +37,8 @@ internal class ReadinessChecker(
         }
         if (!environment.isGranted(CAMERA)) blockers += Blocker.CAMERA_PERMISSION_MISSING
 
-        val all = profiles()
-        val profile = profileId?.let { id -> all.firstOrNull { it.id == id } }
-        if (profileId != null && profile == null) blockers += Blocker.PROFILE_NOT_FOUND
-        // Without a chosen profile the user may pick any, so location is needed if any profile needs it.
-        val locationRequired = profile?.location?.required ?: all.any { it.location.required }
+        val known = profiles().map { it.id }.toSet()
+        if (!known.containsAll(profileIds)) blockers += Blocker.PROFILE_NOT_FOUND
         if (locationRequired) blockers += locationBlockers()
 
         if (environment.freeBytes() < MIN_FREE_BYTES) blockers += Blocker.LOW_STORAGE

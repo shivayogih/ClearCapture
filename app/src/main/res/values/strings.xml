@@ -53,9 +53,14 @@
     <string name="gallery_status_error_message">Another app is using the camera. Close it and try again.</string>
     <string name="gallery_try_again">Try again</string>
     <string name="home_title">ClearCapture POC</string>
-    <string name="home_capture_choose">Capture: choose profile</string>
-    <string name="home_capture_profile">Capture: %1$s</string>
-    <string name="home_capture_override">Capture: general, failed checks may be overridden</string>
+    <string name="home_one_container">One container photo</string>
+    <string name="home_planned_three">Three planned photos: bin front, bin side, truck</string>
+    <string name="home_free_one_to_five">1 to 5 photos, worker chooses the subject</string>
+    <string name="home_location_optional">Location optional, up to 2 photos</string>
+    <string name="home_location_off">Location off</string>
+    <string name="home_host_folder">Save to the app folder jobs/4711</string>
+    <string name="home_gallery_album">Save to the gallery album ClearCapture</string>
+    <string name="home_override">Failed checks may be overridden</string>
     <string name="home_check_readiness">Check readiness</string>
     <string name="home_gallery">Design system gallery</string>
     <string name="home_last_result">Last result</string>

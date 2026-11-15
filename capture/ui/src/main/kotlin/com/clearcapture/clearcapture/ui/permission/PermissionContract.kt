@@ -76,6 +76,10 @@ sealed interface PermissionStep {
 /** State of the permission screen. */
 data class PermissionUiState(
     val camera: Grant = Grant.NOT_ASKED,
+    /** True for LocationMode.OPTIONAL: asked for once, never blocks. */
+    val locationOptional: Boolean = false,
+    /** True once the worker has answered a location request in this session. */
+    val locationAsked: Boolean = false,
     /** `null` when the profile does not need location; it is then never requested. */
     val location: Grant? = Grant.NOT_ASKED,
     val locationServicesOn: Boolean = true,
@@ -93,8 +97,8 @@ sealed interface PermissionIntent {
     /** The action on one permission's card: ask for it, or open settings when only settings can help. */
     data class CardAction(val kind: PermissionKind) : PermissionIntent
 
-    /** The system dialog for [kind] closed. [rationale] is `shouldShowRequestPermissionRationale` per permission. */
-    data class RequestResult(val kind: PermissionKind, val rationale: Map<String, Boolean>) : PermissionIntent
+    /** The system step that asked for [kinds] closed. [rationale] is `shouldShowRequestPermissionRationale` per permission. */
+    data class RequestResult(val kinds: Set<PermissionKind>, val rationale: Map<String, Boolean>) : PermissionIntent
 
     /** The user left the permission step. */
     data object Leave : PermissionIntent
@@ -102,8 +106,8 @@ sealed interface PermissionIntent {
 
 /** One-off effects of the permission screen. */
 sealed interface PermissionEffect {
-    /** Show the system dialog for [permissions]. */
-    data class LaunchRequest(val kind: PermissionKind, val permissions: List<String>) : PermissionEffect
+    /** Show the system dialogs for [permissions], covering [kinds], in one step. */
+    data class LaunchRequest(val kinds: Set<PermissionKind>, val permissions: List<String>) : PermissionEffect
 
     /** Open this app's page in system settings. */
     data object OpenAppSettings : PermissionEffect

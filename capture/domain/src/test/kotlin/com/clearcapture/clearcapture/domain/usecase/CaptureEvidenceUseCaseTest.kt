@@ -12,6 +12,8 @@ import com.clearcapture.clearcapture.domain.model.CaptureError
 import com.clearcapture.clearcapture.domain.model.CaptureStatus
 import com.clearcapture.clearcapture.domain.model.DeviceInfo
 import com.clearcapture.clearcapture.domain.model.LocationFix
+import com.clearcapture.clearcapture.domain.model.LocationNote
+import com.clearcapture.clearcapture.domain.model.LocationUse
 import com.clearcapture.clearcapture.domain.model.LocationStatus
 import com.clearcapture.clearcapture.domain.model.QualityCheck
 import com.clearcapture.clearcapture.domain.model.QualityReport
@@ -128,6 +130,33 @@ class CaptureEvidenceUseCaseTest {
         analyzer.fileError = CaptureError.FileUnreadable("c1.jpg")
         assertThat(useCase(profile, null)).isEqualTo(Outcome.Failure(CaptureError.FileUnreadable("c1.jpg")))
         assertThat(repository.records.value.getValue("c1").status).isEqualTo(CaptureStatus.FAILED)
+    }
+
+    @Test
+    fun `location OFF never blocks, passes no fix and writes no tags`() = runTest {
+        location.state.value = LocationStatus.PermissionMissing
+        val capture = (useCase(profile, null, LocationUse.OFF) as Outcome.Success).value
+        assertThat(camera.lastLocation).isNull()
+        assertThat(exif.writes).isEqualTo(0)
+        assertThat(capture.report.resultOf(QualityCheck.LOCATION)).isNull()
+        assertThat(capture.locationNote).isEqualTo(LocationNote.NOT_REQUESTED)
+    }
+
+    @Test
+    fun `location OPTIONAL without permission continues and says why`() = runTest {
+        location.state.value = LocationStatus.PermissionMissing
+        val capture = (useCase(profile, null, LocationUse.OPTIONAL, label = "Bin front") as Outcome.Success).value
+        assertThat(capture.report.resultOf(QualityCheck.LOCATION)).isNull()
+        assertThat(capture.locationNote).isEqualTo(LocationNote.PERMISSION_DENIED)
+        assertThat(capture.label).isEqualTo("Bin front")
+    }
+
+    @Test
+    fun `location OPTIONAL with a fix still writes and verifies the tags`() = runTest {
+        val capture = (useCase(profile, null, LocationUse.OPTIONAL) as Outcome.Success).value
+        assertThat(exif.writes).isEqualTo(1)
+        assertThat(capture.report.resultOf(QualityCheck.LOCATION)?.verdict).isEqualTo(Verdict.PASS)
+        assertThat(capture.locationNote).isEqualTo(LocationNote.NONE)
     }
 
     @Test

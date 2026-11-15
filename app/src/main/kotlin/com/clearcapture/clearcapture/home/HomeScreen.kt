@@ -25,16 +25,39 @@ import androidx.compose.ui.unit.dp
 import com.clearcapture.clearcapture.R
 import com.clearcapture.clearcapture.api.CaptureConfig
 import com.clearcapture.clearcapture.api.CaptureResult
+import com.clearcapture.clearcapture.api.CapturedImage
 import com.clearcapture.clearcapture.api.ClearCapture
 import com.clearcapture.clearcapture.api.EvidenceCaptureContract
+import com.clearcapture.clearcapture.api.LocationMode
+import com.clearcapture.clearcapture.api.Shot
+import com.clearcapture.clearcapture.api.StorageTarget
+import java.io.File
 
-/** POC home: launch the SDK exactly as a host app would, and see readiness and the last result. */
+/** POC home: launch sessions exactly as a host app would, and see readiness and the last result. */
 @Composable
 internal fun HomeScreen(onOpenGallery: () -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     var lastResult by rememberSaveable { mutableStateOf<String?>(null) }
     var readiness by rememberSaveable { mutableStateOf<String?>(null) }
     val capture = rememberLauncherForActivityResult(EvidenceCaptureContract()) { result -> lastResult = describe(result) }
+    val launches = listOf(
+        R.string.home_one_container to CaptureConfig(defaultProfileId = "container"),
+        R.string.home_planned_three to CaptureConfig(
+            shots = listOf(Shot("container", "Bin front"), Shot("container", "Bin side"), Shot("vehicle", "Truck")),
+            minPhotos = 3,
+            references = mapOf("jobId" to "4711", "binId" to "B-0093"),
+        ),
+        R.string.home_free_one_to_five to CaptureConfig(minPhotos = 1, maxPhotos = 5),
+        R.string.home_location_optional to CaptureConfig(defaultProfileId = "general", locationMode = LocationMode.OPTIONAL, maxPhotos = 2),
+        R.string.home_location_off to CaptureConfig(defaultProfileId = "general", locationMode = LocationMode.OFF),
+        R.string.home_host_folder to CaptureConfig(
+            defaultProfileId = "general",
+            storage = StorageTarget.Directory(File(context.getExternalFilesDir(null), "jobs/4711").path),
+            allowOverrideOnFail = true,
+        ),
+        R.string.home_gallery_album to CaptureConfig(defaultProfileId = "general", storage = StorageTarget.SharedPictures("ClearCapture")),
+        R.string.home_override to CaptureConfig(defaultProfileId = "general", allowOverrideOnFail = true),
+    )
 
     Column(
         modifier = modifier
@@ -45,18 +68,14 @@ internal fun HomeScreen(onOpenGallery: () -> Unit, modifier: Modifier = Modifier
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text(stringResource(R.string.home_title), style = MaterialTheme.typography.headlineSmall)
-        Button(onClick = { capture.launch(CaptureConfig()) }, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.home_capture_choose))
-        }
-        listOf("container", "person", "vehicle", "general").forEach { id ->
-            OutlinedButton(onClick = { capture.launch(CaptureConfig(profileId = id)) }, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.home_capture_profile, id))
+        launches.forEachIndexed { index, (label, config) ->
+            val action = { capture.launch(config) }
+            if (index == 0) {
+                Button(onClick = action, modifier = Modifier.fillMaxWidth()) { Text(stringResource(label)) }
+            } else {
+                OutlinedButton(onClick = action, modifier = Modifier.fillMaxWidth()) { Text(stringResource(label)) }
             }
         }
-        OutlinedButton(
-            onClick = { capture.launch(CaptureConfig(profileId = "general", allowOverrideOnFail = true)) },
-            modifier = Modifier.fillMaxWidth(),
-        ) { Text(stringResource(R.string.home_capture_override)) }
         OutlinedButton(
             onClick = { readiness = ClearCapture.checkReadiness(context).toString() },
             modifier = Modifier.fillMaxWidth(),
@@ -71,12 +90,18 @@ internal fun HomeScreen(onOpenGallery: () -> Unit, modifier: Modifier = Modifier
 }
 
 private fun describe(result: CaptureResult): String = when (result) {
-    is CaptureResult.Accepted -> buildString {
-        appendLine("Accepted ${result.profileId}: ${result.quality.verdict} (score ${result.quality.score})")
-        appendLine(result.imageUri.toString())
-        result.location?.let { appendLine("Location ±${it.accuracyMeters} m, mock=${it.isMock}") }
-        result.quality.checks.forEach { appendLine("${it.check}: ${it.verdict} ${it.reasonCode.orEmpty()}") }
-    }
-    CaptureResult.Cancelled -> "Cancelled"
+    is CaptureResult.Completed -> "Completed with ${result.images.size} photos\n" + describe(result.images)
+    is CaptureResult.Cancelled -> "Cancelled with ${result.images.size} kept photos\n" + describe(result.images)
     is CaptureResult.Failed -> "Failed ${result.code}: ${result.message}"
+}
+
+private fun describe(images: List<CapturedImage>): String = images.joinToString("\n\n", transform = ::describe)
+
+private fun describe(image: CapturedImage): String = buildString {
+    appendLine("${image.label ?: image.profileId}: ${image.quality.verdict} (score ${image.quality.score}) ${image.width}x${image.height}")
+    appendLine(image.uri.toString())
+    appendLine(image.location?.let { "Location ±${it.accuracyMeters} m, mock=${it.isMock}" } ?: "No location: ${image.locationNote}")
+    appendLine("sha256 ${image.sha256.take(16)}…  references ${image.references}")
+    image.deliveryNote?.let { appendLine("Delivery: $it") }
+    image.quality.checks.filter { it.verdict != "PASS" }.forEach { appendLine("${it.check}: ${it.verdict} ${it.reasonCode.orEmpty()}") }
 }

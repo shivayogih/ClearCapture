@@ -188,11 +188,11 @@ capture.launch(
 
 | `LocationMode` | Permission | In the photo | `CapturedImage.location` |
 |---|---|---|---|
-| `REQUIRED` (default) | Asked by the SDK (or by the host in host-managed mode); capture blocked until a usable fix | GPS tags written and verified | Never null |
+| `REQUIRED` | Asked by the SDK (or by the host in host-managed mode); capture blocked until a usable fix | GPS tags written and verified | Never null |
 | `OPTIONAL` | Asked once; the worker may refuse | GPS tags when a fix is available | Null when unavailable; `locationNote` says why: `PERMISSION_DENIED`, `LOCATION_OFF`, `NO_FIX` |
 | `OFF` | Never asked | No GPS tags | Always null (`locationNote = NOT_REQUESTED`) |
 
-`LocationMode` overrides the profile's `location.required` for that launch.
+`locationMode` is optional. When it is not set, each subject profile decides (`location.required`; all four bundled profiles require location, so the default behaves as `REQUIRED`). When it is set, it overrides every profile for that launch.
 
 ### 7.1b What each photo carries
 

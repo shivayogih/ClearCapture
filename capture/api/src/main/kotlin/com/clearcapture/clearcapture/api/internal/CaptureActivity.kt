@@ -11,7 +11,6 @@ import androidx.activity.viewModels
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.clearcapture.clearcapture.api.CaptureConfig
@@ -20,17 +19,16 @@ import com.clearcapture.clearcapture.api.CaptureResult
 import com.clearcapture.clearcapture.api.ClearCapture
 import com.clearcapture.clearcapture.api.internal.flow.FlowGraph
 import com.clearcapture.clearcapture.api.internal.flow.FlowViewModel
-import com.clearcapture.clearcapture.api.internal.flow.SdkFlowHost
-import com.clearcapture.clearcapture.api.internal.flow.StartDestination
 import com.clearcapture.clearcapture.api.internal.mapping.AppearanceMapper
 import com.clearcapture.clearcapture.api.internal.mapping.FlowOutcomeMapper
+import com.clearcapture.clearcapture.camera.CameraPreview
 import com.clearcapture.clearcapture.designsystem.theme.ClearCaptureTheme
 import com.clearcapture.clearcapture.domain.model.FlowOutcome
-import com.clearcapture.clearcapture.ui.navigation.CaptureNavGraph
+import com.clearcapture.clearcapture.ui.session.CaptureSessionRoute
 
 /**
- * The SDK's own screen, launched by [com.clearcapture.clearcapture.api.EvidenceCaptureContract]. Not exported,
- * own theme, handles rotation itself so the camera session is not torn down (LLD 7).
+ * The SDK's own screen, launched by [com.clearcapture.clearcapture.api.EvidenceCaptureContract]: one capture session
+ * on one screen. Not exported, own theme, handles rotation itself so the camera session is not torn down (LLD 7).
  */
 internal class CaptureActivity : ComponentActivity() {
 
@@ -38,10 +36,7 @@ internal class CaptureActivity : ComponentActivity() {
 
     private val flow: FlowViewModel by viewModels {
         viewModelFactory {
-            initializer {
-                val runtime = ClearCapture.runtime(applicationContext)
-                FlowViewModel(FlowGraph(runtime, config, ::emitEvent))
-            }
+            initializer { FlowViewModel(FlowGraph(ClearCapture.runtime(applicationContext), config, ::emitEvent)) }
         }
     }
 
@@ -50,20 +45,22 @@ internal class CaptureActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         hideSystemBars()
         val runtime = ClearCapture.runtime(applicationContext)
-        if (savedInstanceState == null) emitEvent(CaptureEvent.FlowOpened(config.requestId, config.profileId))
-        val start = StartDestination.of(runtime.readinessChecker.check(config.profileId), config.profileId)
-        val host = SdkFlowHost(flow.graph, start, runtime::profilesBlocking, ::finishWith)
-        // Without the permission step the session starts at once, so location and OpenCV warm up immediately.
-        if (savedInstanceState == null && start !is com.clearcapture.clearcapture.ui.navigation.CaptureDestination.Permission) {
-            host.onPermissionsGranted()
-        }
+        if (savedInstanceState == null) emitEvent(CaptureEvent.FlowOpened(config.requestId, config.defaultProfileId))
+        val profiles = runtime.profilesBlocking()
         val appearance = AppearanceMapper.map(runtime.config.appearance)
         setContent {
             ClearCaptureTheme(
                 appearance = appearance,
                 onBrandColorRejected = { runtime.logger.error(TAG, "Brand colours rejected: ${it.reason}, contrast ${it.contrastRatio}") },
             ) {
-                CaptureNavGraph(host)
+                CaptureSessionRoute(
+                    createViewModel = { flow.graph.sessionViewModel(profiles) },
+                    preview = { modifier, onTap ->
+                        val graph = flow.graph
+                        CameraPreview(controller = graph.camera, frameConsumer = graph.pipeline, onTap = onTap, modifier = modifier)
+                    },
+                    onFinish = ::finishWith,
+                )
             }
         }
     }
@@ -77,8 +74,8 @@ internal class CaptureActivity : ComponentActivity() {
     }
 
     private fun finishWith(outcome: FlowOutcome) {
-        ClearCapture.runtime(applicationContext).logger.debug(TAG, "Flow finished: ${outcome::class.simpleName}")
-        val result = FlowOutcomeMapper.map(outcome, config.requestId)
+        ClearCapture.runtime(applicationContext).logger.debug(TAG, "Session finished: ${outcome::class.simpleName}")
+        val result = FlowOutcomeMapper.map(outcome, config.requestId, config.references)
         emitEvent(CaptureEvent.FlowClosed(config.requestId, result))
         setResult(Activity.RESULT_OK, Intent().putExtra(EXTRA_RESULT, result))
         finish()

@@ -84,6 +84,9 @@ interface ExifStore {
 
     /** Dimensions, size, orientation and capture time. */
     suspend fun readImageInfo(file: File): ImageInfo?
+
+    /** Writes the host's identifiers into the JPEG (ImageDescription and UserComment, as JSON). */
+    suspend fun writeReferences(file: File, references: Map<String, String>): Outcome<Unit, CaptureError>
 }
 
 /** Stores one record per capture attempt. */
@@ -121,8 +124,6 @@ interface FileStore {
     /** A new file in pending storage for [captureId]. */
     fun newPendingFile(captureId: String): File
 
-    /** Moves a pending file to accepted storage and returns its new location. */
-    suspend fun promote(pending: File, captureId: String, epochMillis: Long): Outcome<File, CaptureError>
 
     /** Deletes a file if it exists. */
     suspend fun delete(file: File)

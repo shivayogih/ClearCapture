@@ -107,6 +107,24 @@ class AndroidExifStore(
         )
     }
 
+    override suspend fun writeReferences(file: File, references: Map<String, String>): Outcome<Unit, CaptureError> =
+        withContext(ioDispatcher) {
+            try {
+                val json = references.entries.joinToString(",", "{", "}") { (k, v) -> "\"${escape(k)}\":\"${escape(v)}\"" }
+                ExifInterface(file).apply {
+                    setAttribute(ExifInterface.TAG_IMAGE_DESCRIPTION, json)
+                    setAttribute(ExifInterface.TAG_USER_COMMENT, json)
+                    saveAttributes()
+                }
+                Outcome.Success(Unit)
+            } catch (e: IOException) {
+                logger.error(TAG, "Could not write references", e)
+                Outcome.Failure(CaptureError.FileUnreadable(file.name))
+            }
+        }
+
+    private fun escape(text: String): String = text.replace("\\", "\\\\").replace("\"", "\\\"")
+
     /** True when [found] matches [expected] within 0.00001 degrees (LLD 8.2 verification). */
     fun matches(found: LocationFix, expected: LocationFix): Boolean =
         abs(found.latitude - expected.latitude) <= COORDINATE_TOLERANCE && abs(found.longitude - expected.longitude) <= COORDINATE_TOLERANCE

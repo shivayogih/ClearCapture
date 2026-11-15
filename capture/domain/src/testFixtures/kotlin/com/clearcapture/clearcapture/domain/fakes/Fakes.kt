@@ -79,21 +79,30 @@ class FakeCameraController : CameraController {
 /** Files under a temporary directory. */
 class FakeFileStore(private val root: File) : FileStore {
     var free: Long = Long.MAX_VALUE
-    var promoteError: CaptureError? = null
     val deleted = mutableListOf<File>()
     override fun newPendingFile(captureId: String) = File(root, "pending/$captureId.jpg")
-    override suspend fun promote(pending: File, captureId: String, epochMillis: Long): Outcome<File, CaptureError> {
-        promoteError?.let { return Outcome.Failure(it) }
-        val target = File(root, "accepted/$captureId.jpg").also { it.parentFile?.mkdirs() }
-        pending.renameTo(target)
-        return Outcome.Success(target)
-    }
+
     override suspend fun delete(file: File) {
         deleted += file
         file.delete()
     }
     override fun freeBytes(): Long = free
     override suspend fun deleteOrphans(maxAgeMillis: Long) = Unit
+}
+
+/** A destination that copies into [root]/[name], or fails with [failWith]. */
+class FakeDestination(private val root: File, private val name: String) : com.clearcapture.clearcapture.domain.port.ImageDestination {
+    var failWith: com.clearcapture.clearcapture.domain.port.StoreFailure? = null
+    val stored = mutableListOf<String>()
+    override suspend fun store(source: File, captureId: String, epochMillis: Long):
+        Outcome<com.clearcapture.clearcapture.domain.port.StoredImage, com.clearcapture.clearcapture.domain.port.StoreFailure> {
+        failWith?.let { return Outcome.Failure(it) }
+        val target = File(root, "$name/$captureId.jpg").also { it.parentFile?.mkdirs() }
+        source.copyTo(target, overwrite = true)
+        source.delete()
+        stored += captureId
+        return Outcome.Success(com.clearcapture.clearcapture.domain.port.StoredImage(target.toURI().toString(), target))
+    }
 }
 
 /** EXIF tags held in memory per file. [cameraWritesTags] mimics CameraX writing GPS tags itself. */
@@ -110,6 +119,13 @@ class FakeExifStore(var cameraWritesTags: Boolean = true, var writeSticks: Boole
         tags[from.path]?.let { tags[to.path] = it }
     }
     override suspend fun readImageInfo(file: File) = ImageInfo(4000, 3000, file.length(), 1, null)
+
+    /** References written per file path. */
+    val references = mutableMapOf<String, Map<String, String>>()
+    override suspend fun writeReferences(file: File, references: Map<String, String>): Outcome<Unit, CaptureError> {
+        this.references[file.path] = references
+        return Outcome.Success(Unit)
+    }
 
     /** Called by tests after the camera "wrote" the file. */
     fun cameraWrote(file: File, fix: LocationFix?) {

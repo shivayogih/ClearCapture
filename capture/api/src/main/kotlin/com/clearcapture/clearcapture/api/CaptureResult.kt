@@ -4,32 +4,22 @@ import android.net.Uri
 import android.os.Parcelable
 import kotlinx.parcelize.Parcelize
 
-/** How a launch of the capture flow ended. Every outcome is one of these; the SDK never throws into the host. */
+/** How a capture session ended. Every outcome is one of these; the SDK never throws into the host. */
 public sealed interface CaptureResult : Parcelable {
 
-    /**
-     * The user accepted a photograph.
-     *
-     * @property imageUri a `file://` URI in the app's private storage. The file belongs to the host from now on.
-     * @property location where the photograph was taken; `null` only when the profile does not require location.
-     */
+    /** The session finished with at least `minPhotos` kept photos. */
     @Parcelize
-    public data class Accepted(
-        val captureId: String,
-        val imageUri: Uri,
-        val profileId: String,
-        val quality: QualitySummary,
-        val location: GeoStamp?,
-        val capturedAtEpochMillis: Long,
-        val requestId: String,
+    public data class Completed(val requestId: String, val images: List<CapturedImage>) : CaptureResult
+
+    /** The worker left before finishing. [images] are the photos already kept (often none); the host decides their fate. */
+    @Parcelize
+    public data class Cancelled @JvmOverloads constructor(
+        val requestId: String = "",
+        val images: List<CapturedImage> = emptyList(),
     ) : CaptureResult
 
-    /** The user left the flow. */
-    @Parcelize
-    public data object Cancelled : CaptureResult
-
     /**
-     * The flow could not run or could not finish.
+     * The session could not run or could not finish.
      *
      * @property code one of the constants in [FailureCodes].
      * @property message a developer-facing explanation; for [FailureCodes.PERMISSION_MISSING] and
@@ -38,6 +28,36 @@ public sealed interface CaptureResult : Parcelable {
     @Parcelize
     public data class Failed(val code: String, val message: String) : CaptureResult
 }
+
+/**
+ * One kept photo (SDK_REQUIREMENTS 7.1b).
+ *
+ * @property uri where it was saved, readable by the host: `file://` for app storage and folders, `content://` for the
+ *   shared gallery. The file belongs to the host from now on.
+ * @property location where it was taken; `null` only when location was optional or off, with the reason in
+ *   [locationNote].
+ * @property sha256 hex SHA-256 of the saved bytes, so a server can detect a changed file.
+ * @property gpsTime true when the time came from the GPS fix rather than only the device clock.
+ * @property deliveryNote set when the requested storage failed and the photo was kept in the SDK's storage instead.
+ */
+@Parcelize
+public data class CapturedImage(
+    val captureId: String,
+    val uri: Uri,
+    val profileId: String,
+    val label: String?,
+    val quality: QualitySummary,
+    val location: GeoStamp?,
+    val locationNote: String,
+    val capturedAtEpochMillis: Long,
+    val gpsTime: Boolean,
+    val sha256: String,
+    val width: Int,
+    val height: Int,
+    val fileBytes: Long,
+    val references: Map<String, String>,
+    val deliveryNote: String?,
+) : Parcelable
 
 /** The values of [CaptureResult.Failed.code]. */
 public object FailureCodes {
@@ -50,17 +70,20 @@ public object FailureCodes {
     /** The camera could not be opened or used. */
     public const val CAMERA_ERROR: String = "CAMERA_ERROR"
 
-    /** The photograph could not be saved. */
+    /** Not enough space to start a session. */
     public const val STORAGE_FULL: String = "STORAGE_FULL"
 
-    /** The requested profile ID is unknown. */
+    /** The requested storage destination cannot be written. */
+    public const val STORAGE_UNAVAILABLE: String = "STORAGE_UNAVAILABLE"
+
+    /** A requested subject profile is unknown. */
     public const val PROFILE_NOT_FOUND: String = "PROFILE_NOT_FOUND"
 
     /** An unexpected error; details are in the log. */
     public const val INTERNAL: String = "INTERNAL"
 }
 
-/** The quality verdict of an accepted photograph. */
+/** The quality verdict of a kept photo. */
 @Parcelize
 public data class QualitySummary(
     /** `PASS`, `WARNING` or `FAIL`. */
@@ -68,7 +91,7 @@ public data class QualitySummary(
     /** 0..100, for reporting only. */
     val score: Int,
     val checks: List<CheckSummary>,
-    /** The reason the user gave when accepting a failed photograph, if the profile allowed it. */
+    /** The reason the worker gave when keeping a failed photo, if the profile allowed it. */
     val overriddenReason: String? = null,
 ) : Parcelable
 
@@ -85,7 +108,7 @@ public data class CheckSummary(
     val metrics: Map<String, Double>,
 ) : Parcelable
 
-/** The location written into the photograph. */
+/** The location written into the photo. */
 @Parcelize
 public data class GeoStamp(
     val latitude: Double,

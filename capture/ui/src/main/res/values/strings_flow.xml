@@ -33,6 +33,33 @@
     <string name="cc_permission_action_location_settings">Turn on location</string>
     <string name="cc_permission_not_now">Not now</string>
 
+    <string name="cc_permission_location_reason_optional">Saved inside each photo when allowed. Photos can be taken without it.</string>
+    <string name="cc_permission_step_explain_all">Allow the camera and location, so each photo can be taken and proves where it was taken.</string>
+
+    <!-- Capture session (single screen, several photos). -->
+    <string name="cc_session_photo_of">Photo %1$d of %2$d</string>
+    <string name="cc_session_at_least">(at least %1$d)</string>
+    <string name="cc_session_done">Done (%1$d)</string>
+    <string name="cc_session_keep">Keep</string>
+    <string name="cc_session_checking">Checking photo…</string>
+    <string name="cc_session_kept_toast">Photo %1$d kept</string>
+    <string name="cc_session_kept_photo">Kept photo %1$d</string>
+    <string name="cc_session_remove_photo">Remove photo %1$d</string>
+    <string name="cc_session_reason_max">All photos taken. Tap Done</string>
+    <string name="cc_session_reason_panel">Keep or retake the last photo first</string>
+    <string name="cc_session_storage_low">Storage is almost full</string>
+    <string name="cc_session_storage_full_title">Storage is full</string>
+    <string name="cc_session_storage_full_message">Photos cannot be saved. Free some space on the device, then try again.</string>
+    <string name="cc_session_finish_with">Finish with %1$d photos</string>
+    <string name="cc_session_store_failed_title">The photo could not be saved</string>
+    <string name="cc_session_store_failed_message">It is still safe on this device. %1$s. Try again, or retake it.</string>
+    <string name="cc_session_store_failed_space">There is not enough space (%1$s). Free some space, then try again.</string>
+    <string name="cc_session_fallback_title">Saved in the app instead</string>
+    <string name="cc_session_fallback_message">The photo could not be saved where your app asked (%1$s), so it was kept in the app\'s own storage. Nothing was lost.</string>
+    <string name="cc_session_capture_failed_message">Try again. If this keeps happening, restart the app.</string>
+    <string name="cc_session_camera_error_message">Close the capture and try again later.</string>
+    <string name="cc_session_ok">OK</string>
+
     <!-- Live hints: short, sentence case, no full stop (DESIGN_SYSTEM section 3). -->
     <string name="cc_hint_aim">Point at the subject</string>
     <string name="cc_hint_location_waiting">Waiting for location</string>

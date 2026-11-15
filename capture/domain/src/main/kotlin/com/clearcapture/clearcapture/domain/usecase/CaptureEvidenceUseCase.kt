@@ -2,6 +2,7 @@ package com.clearcapture.clearcapture.domain.usecase
 
 import com.clearcapture.clearcapture.common.Clock
 import com.clearcapture.clearcapture.common.Outcome
+import com.clearcapture.clearcapture.common.map
 import com.clearcapture.clearcapture.domain.location.LocationFixPolicy
 import com.clearcapture.clearcapture.domain.model.CaptureError
 import com.clearcapture.clearcapture.domain.model.CaptureProfile
@@ -9,6 +10,8 @@ import com.clearcapture.clearcapture.domain.model.CaptureRecord
 import com.clearcapture.clearcapture.domain.model.CaptureStatus
 import com.clearcapture.clearcapture.domain.model.DeviceInfo
 import com.clearcapture.clearcapture.domain.model.LocationFix
+import com.clearcapture.clearcapture.domain.model.LocationNote
+import com.clearcapture.clearcapture.domain.model.LocationUse
 import com.clearcapture.clearcapture.domain.model.LocationStatus
 import com.clearcapture.clearcapture.domain.model.PendingCapture
 import com.clearcapture.clearcapture.domain.model.QualityCheck
@@ -42,12 +45,29 @@ class CaptureEvidenceUseCase(
      * @param profile the resolved profile.
      * @param expectedCaptureLongSide what the camera reported at bind time, to detect unexpected downscaling.
      */
-    suspend operator fun invoke(profile: CaptureProfile, expectedCaptureLongSide: Int?): Outcome<PendingCapture, CaptureError> {
-        val status = locationSource.current()
-        return when (val blocked = gate(profile, status)) {
-            null -> capture(profile, status.fixOrNull, expectedCaptureLongSide)
+    suspend operator fun invoke(
+        profile: CaptureProfile,
+        expectedCaptureLongSide: Int?,
+        locationUse: LocationUse? = null,
+        label: String? = null,
+    ): Outcome<PendingCapture, CaptureError> {
+        // Without a host choice the profile decides; an explicit mode overrides it for this session.
+        val use = locationUse ?: if (profile.location.required) LocationUse.REQUIRED else LocationUse.OFF
+        val sessionProfile = use.applyTo(profile)
+        val status = if (use == LocationUse.OFF) LocationStatus.NotRequired else locationSource.current()
+        return when (val blocked = gate(sessionProfile, status)) {
+            null -> capture(sessionProfile, status.fixOrNull, expectedCaptureLongSide)
+                .map { it.copy(label = label, locationNote = noteFor(use, status)) }
             else -> Outcome.Failure(blocked)
         }
+    }
+
+    private fun noteFor(use: LocationUse, status: LocationStatus): LocationNote = when {
+        use == LocationUse.OFF -> LocationNote.NOT_REQUESTED
+        status.fixOrNull != null -> LocationNote.NONE
+        status is LocationStatus.PermissionMissing -> LocationNote.PERMISSION_DENIED
+        status is LocationStatus.ProviderDisabled -> LocationNote.LOCATION_OFF
+        else -> LocationNote.NO_FIX
     }
 
     /** Steps 1 and 2: what stops the shutter before anything is written. */
@@ -74,7 +94,8 @@ class CaptureEvidenceUseCase(
         }
 
         // Steps 4 and 5: complete and verify the GPS tags, then judge the fix.
-        val locationResult = if (profile.location.required) {
+        // A fix is verified whenever one was used, even when location is optional for this session.
+        val locationResult = if (profile.location.required || fix != null) {
             fix?.let { exifStore.writeLocation(file, it) }
             val tagsPresent = exifStore.readLocation(file) != null
             LocationFixPolicy.checkResult(fix, profile.location, capturedAt, tagsPresent)

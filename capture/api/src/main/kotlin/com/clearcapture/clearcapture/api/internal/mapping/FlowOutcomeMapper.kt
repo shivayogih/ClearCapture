@@ -2,6 +2,7 @@ package com.clearcapture.clearcapture.api.internal.mapping
 
 import android.net.Uri
 import com.clearcapture.clearcapture.api.CaptureResult
+import com.clearcapture.clearcapture.api.CapturedImage
 import com.clearcapture.clearcapture.api.CheckSummary
 import com.clearcapture.clearcapture.api.GeoStamp
 import com.clearcapture.clearcapture.api.QualitySummary
@@ -13,20 +14,28 @@ import com.clearcapture.clearcapture.domain.model.QualityReport
 /** Maps the domain [FlowOutcome] to the public [CaptureResult]. The only place the two meet. */
 internal object FlowOutcomeMapper {
 
-    fun map(outcome: FlowOutcome, requestId: String): CaptureResult = when (outcome) {
-        is FlowOutcome.Accepted -> accepted(outcome.capture, requestId)
-        FlowOutcome.Cancelled -> CaptureResult.Cancelled
+    fun map(outcome: FlowOutcome, requestId: String, references: Map<String, String>): CaptureResult = when (outcome) {
+        is FlowOutcome.Completed -> CaptureResult.Completed(requestId, outcome.captures.map { image(it, references) })
+        is FlowOutcome.Cancelled -> CaptureResult.Cancelled(requestId, outcome.captures.map { image(it, references) })
         is FlowOutcome.Failed -> CaptureResult.Failed(outcome.code.name, outcome.detail)
     }
 
-    private fun accepted(capture: AcceptedCapture, requestId: String) = CaptureResult.Accepted(
+    private fun image(capture: AcceptedCapture, references: Map<String, String>) = CapturedImage(
         captureId = capture.captureId,
-        imageUri = Uri.fromFile(capture.file),
+        uri = Uri.parse(capture.uri),
         profileId = capture.profileId,
+        label = capture.label,
         quality = summary(capture.report, capture.overrideReason),
         location = capture.fix?.let(::geoStamp),
+        locationNote = capture.locationNote.name,
         capturedAtEpochMillis = capture.capturedAtEpochMillis,
-        requestId = requestId,
+        gpsTime = capture.gpsTime,
+        sha256 = capture.sha256,
+        width = capture.width,
+        height = capture.height,
+        fileBytes = capture.fileBytes,
+        references = references,
+        deliveryNote = capture.deliveryNote,
     )
 
     fun summary(report: QualityReport, overrideReason: String?): QualitySummary = QualitySummary(
