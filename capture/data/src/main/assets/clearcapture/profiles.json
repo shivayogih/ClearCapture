@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "defaults": {
+    "hintHoldMillis": 400,
+    "allowAcceptOnWarning": true,
+    "allowOverrideOnFail": false,
+    "location": { "required": true, "maxAgeSeconds": 60, "maxAccuracyMeters": 50, "failOnStale": false, "failOnInaccurate": false },
+    "thresholds": {
+      "live":  { "blurFail": 60,  "blurWarn": 100 },
+      "final": { "blurFail": 120, "blurWarn": 180 },
+      "lumaMin": 60, "lumaMax": 200, "darkClipMax": 0.35, "brightClipMax": 0.15,
+      "glareWarnPct": 0.03, "glareFailPct": 0.08, "glareBlobWarnPct": 0.01, "glareBlobFailPct": 0.03,
+      "coverageMin": 0.45, "coverageMax": 0.98,
+      "minLongSide": 1920, "minShortSide": 1080, "minFileBytes": 200000,
+      "cellEdgeMin": 0.015, "cellStdMin": 8.0, "obstructWarnPct": 0.20, "obstructFailPct": 0.35
+    }
+  },
+  "profiles": [
+    {
+      "id": "container", "titleKey": "cc_profile_container", "guideShape": "CONTAINER",
+      "guide": { "left": 0.18, "top": 0.16, "right": 0.82, "bottom": 0.92 },
+      "requiredChecks": ["BLUR", "EXPOSURE", "GLARE", "FRAMING", "RESOLUTION", "OBSTRUCTION", "LOCATION"],
+      "warningOnlyChecks": ["FRAMING", "OBSTRUCTION"]
+    },
+    {
+      "id": "person", "titleKey": "cc_profile_person", "guideShape": "PORTRAIT",
+      "guide": { "left": 0.30, "top": 0.08, "right": 0.70, "bottom": 0.96 },
+      "requiredChecks": ["BLUR", "EXPOSURE", "FRAMING", "RESOLUTION", "OBSTRUCTION", "LOCATION"],
+      "warningOnlyChecks": ["FRAMING", "OBSTRUCTION"],
+      "thresholds": { "coverageMin": 0.35 }
+    },
+    {
+      "id": "vehicle", "titleKey": "cc_profile_vehicle", "guideShape": "VEHICLE",
+      "guide": { "left": 0.06, "top": 0.22, "right": 0.94, "bottom": 0.92 },
+      "requiredChecks": ["BLUR", "EXPOSURE", "GLARE", "FRAMING", "RESOLUTION", "OBSTRUCTION", "LOCATION"],
+      "warningOnlyChecks": ["FRAMING", "OBSTRUCTION", "GLARE"],
+      "thresholds": { "glareFailPct": 0.10 }
+    },
+    {
+      "id": "general", "titleKey": "cc_profile_general", "guideShape": "NONE", "guide": null,
+      "requiredChecks": ["BLUR", "EXPOSURE", "RESOLUTION", "OBSTRUCTION", "LOCATION"],
+      "warningOnlyChecks": ["OBSTRUCTION"]
+    }
+  ],
+  "deviceOverrides": [
+    { "match": { "fixedFocus": true }, "thresholds": { "final": { "blurFail": 90, "blurWarn": 140 } } }
+  ]
+}

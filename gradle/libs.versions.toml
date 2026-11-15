@@ -4,7 +4,10 @@
 compileSdk = "37"
 targetSdk = "37"
 minSdk = "26"
-jdk = "17"
+# JDK that runs Gradle and the compilers (provisioned automatically, see gradle/gradle-daemon-jvm.properties).
+jdk = "21"
+# Bytecode level of the SDK libraries. Kept at 17 so hosts that still build on JDK 17 (AGP 9's minimum) can consume the AAR.
+sdkBytecode = "17"
 sdkVersion = "0.1.0"
 
 # Toolchain
@@ -55,6 +58,7 @@ dokka = "2.3.0"
 android-gradlePlugin = { module = "com.android.tools.build:gradle", version.ref = "agp" }
 kotlin-gradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
 detekt-gradlePlugin = { module = "io.gitlab.arturbosch.detekt:detekt-gradle-plugin", version.ref = "detekt" }
+roborazzi-gradlePlugin = { module = "io.github.takahirom.roborazzi:roborazzi-gradle-plugin", version.ref = "roborazzi" }
 
 # Kotlin
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
@@ -140,6 +144,7 @@ ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
 roborazzi = { id = "io.github.takahirom.roborazzi", version.ref = "roborazzi" }
+androidx-room = { id = "androidx.room", version.ref = "room" }
 baselineprofile = { id = "androidx.baselineprofile", version.ref = "benchmark" }
 binaryCompatibility = { id = "org.jetbrains.kotlinx.binary-compatibility-validator", version.ref = "binaryCompatibility" }
 dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }

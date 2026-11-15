@@ -5,6 +5,7 @@ import com.clearcapture.buildlogic.registerModuleRulesCheck
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.plugins.JavaPluginExtension
+import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.kotlin.dsl.configure
 
 /** Pure Kotlin (JVM) module: no Android on the classpath, so it compiles and tests as plain Kotlin. */
@@ -15,6 +16,7 @@ class KotlinLibraryConventionPlugin : Plugin<Project> {
             sourceCompatibility = javaVersion()
             targetCompatibility = javaVersion()
         }
+        tasks.withType(JavaCompile::class.java).configureEach { options.release.set(javaVersion().majorVersion.toInt()) }
         configureKotlinCompiler()
         configureDetekt()
         registerModuleRulesCheck()

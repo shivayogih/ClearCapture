@@ -33,6 +33,7 @@ style:
     ignoreAnnotated: ['Preview']
   ReturnCount:
     max: 4
+    excludeGuardClauses: true
   ForbiddenComment:
     active: true
     comments:
@@ -42,6 +43,7 @@ style:
         reason: 'Must not be merged.'
   MaxLineLength:
     maxLineLength: 140
+    excludes: ['**/test/**', '**/androidTest/**', '**/testFixtures/**']
 
 potential-bugs:
   UnsafeCallOnNullableType:

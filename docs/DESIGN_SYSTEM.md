@@ -204,3 +204,17 @@ Every rejection states what is wrong and what to do next. No technical terms, no
 - Every component has previews for each state in light and dark, and a screenshot test (Roborazzi, run on the JVM).
 - A lint rule or build check fails when a feature module uses a raw colour, a raw dp size for a touch target, or a Material component directly.
 - The POC app includes a gallery screen that shows every component in every state; for this `:app` depends on `:designsystem` directly.
+
+### 9.1 Recorded during implementation (Milestone 2)
+
+Points where the text above could not be implemented exactly as written. Proposed for the next revision; nothing else was changed.
+
+| Where | As written | As implemented | Why |
+|---|---|---|---|
+| 2.2 | The dark table has no `outline` | Dark `outline` = `#899390` (5.9:1 on the dark `surface`) | Borders and dividers need an outline colour in dark mode too |
+| 2.1 | `outline` on `surface`: 4.5:1 | Computed 4.49:1 | Outline is non-text and needs 3:1, which it meets; only the stated figure is off |
+| 2.3 | Guide lines have a "1 dp black outline" but no token | Token `camera.guideOutline` = `#000000` | Every colour comes from a token |
+| 9 | `CcTheme.colors`, `.type`, `.spacing`, `.shapes`, `.motion` | Also `CcTheme.sizes` (section 4 sizes) and `CcTheme.isTablet` (phone or tablet edge padding and button width) | Feature screens need the fixed sizes as tokens |
+| 4 | Corner style "square" | Square sets small, medium, large and pill to 0 dp; the shutter and icon buttons stay round | Round controls are not corners |
+| 2.5 | A refused brand pair is logged | `ClearCaptureTheme` reports it through `onBrandColorRejected`; the caller logs it | `:designsystem` has no logger |
+| 9 | Screenshot tests "on the JVM" | Robolectric renders with Android SDK 34 | Robolectric needs Java 21 for SDK 35 and later; the build uses JDK 17 |

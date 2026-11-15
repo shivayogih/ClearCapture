@@ -8,6 +8,7 @@ dependencies {
     compileOnly(libs.android.gradlePlugin)
     compileOnly(libs.kotlin.gradlePlugin)
     implementation(libs.detekt.gradlePlugin)
+    implementation(libs.roborazzi.gradlePlugin)
 }
 
 gradlePlugin {
@@ -35,6 +36,10 @@ gradlePlugin {
         register("test") {
             id = "clearcapture.test"
             implementationClass = "TestConventionPlugin"
+        }
+        register("screenshot") {
+            id = "clearcapture.screenshot"
+            implementationClass = "ScreenshotTestConventionPlugin"
         }
     }
 }

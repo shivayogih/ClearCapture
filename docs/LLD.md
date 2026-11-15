@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Package | `com.clearcapture.clearcapture` |
-| Status | Draft for review, revision 4, SDK edition (13 November 2026) |
+| Status | Revision 5, SDK edition (14 November 2026): implementation notes in section 16 |
 | Date | 13 November 2026 |
 | Companions | `HLD.md`, `SDK_REQUIREMENTS.md`, `DESIGN_SYSTEM.md` |
 
@@ -73,7 +73,8 @@ The Kotlin in this document is design-level: it fixes names, shapes and contract
 
 :core:location        com.clearcapture.clearcapture.location
     FusedLocationSource, PlatformLocationSource, LocationFixPolicy,
-    AndroidExifStore, PermissionChecker
+    AndroidExifStore, LocationSources (fused or platform, chosen once per flow)
+    (readiness checks live in :capture:api, internal/readiness, because only the API module reports Blockers)
 
 :core:common          com.clearcapture.clearcapture.common
     AppDispatchers, Outcome, CaptureLogger (default no-op)
@@ -110,7 +111,8 @@ public sealed interface CaptureResult : Parcelable {
         val imageUri: Uri,                    // file:// URI to app-private storage
         val profileId: String,
         val quality: QualitySummary,
-        val location: GeoStamp,
+        val location: GeoStamp?,              // null only when the profile does not require location
+        val requestId: String,                // echoes CaptureConfig.requestId
         val capturedAtEpochMillis: Long,
     ) : CaptureResult
 
@@ -222,15 +224,14 @@ The SPI interfaces in `api.spi` and the data models they use are declared in `:c
 /**
  * Public SPI. Blocking and callable from Java. The SDK calls it off the main thread,
  * except from `checkReadiness`, which calls it on the caller's thread.
- * `CaptureProfileSpec` is the public profile data model of `api.spi`.
+ * It returns the profile file in the schema of section 6.2; invalid JSON is logged and the bundled profiles are used.
  */
-public interface CaptureProfileProvider {
-    public fun profiles(): List<CaptureProfileSpec>
-    public fun profile(id: String): CaptureProfileSpec?
+public fun interface CaptureProfileProvider {
+    public fun profilesJson(): String
 }
 ```
 
-The domain port of the same name (section 3.1) remains `suspend`; the adapter runs the blocking SPI call on the IO dispatcher.
+The SPI returns JSON in the documented schema rather than a public mirror of the profile model (revision 5): the schema is already the host-facing format, is versioned by `schemaVersion`, and keeps the public API small. A host can also ship `assets/clearcapture_profiles.json` instead of a provider. The domain port of the same name (section 3.1) remains `suspend`; `AssetCaptureProfileProvider` parses and caches on the IO dispatcher, and `checkReadiness` uses its blocking read.
 
 ```kotlin
 @RequiresOptIn(message = "Diagnostics are for test and calibration builds only.")
@@ -334,6 +335,7 @@ sealed interface LocationStatus {
     data object PermissionMissing : LocationStatus
     data object ProviderDisabled : LocationStatus
     data object Acquiring : LocationStatus
+    data object NotRequired : LocationStatus          // the profile does not need location (revision 5)
     data class Ready(val fix: LocationFix) : LocationStatus
     data class Stale(val fix: LocationFix) : LocationStatus
     data class Inaccurate(val fix: LocationFix) : LocationStatus
@@ -379,7 +381,8 @@ A `CaptureProfile` carries its `deviceOverrides` unapplied. `ProfileResolver.res
 ```kotlin
 interface CameraController {
     val state: StateFlow<CameraState>            // Idle, Starting, Ready(capabilities), Error
-    val frames: Flow<FrameData>                  // latest-only; collector must be fast
+    // Live frames are not a Flow (revision 5): CameraPreview hands each frame to a FrameConsumer on the
+    // analysis thread and closes it when the call returns, so no frame can outlive its ImageProxy.
     suspend fun takePicture(target: File, location: LocationFix?): Outcome<File, CaptureError>
     suspend fun focusAt(x: Float, y: Float)
     fun setTorch(enabled: Boolean)
@@ -596,10 +599,22 @@ The permission screen is shown only in `SDK_MANAGED` mode and only when somethin
 internal interface QualityValidator {
     val check: QualityCheck
     val stages: Set<Stage>
-    /** Must not throw, must not keep references to the mats, must not allocate per call beyond the pool. */
-    fun validate(input: FrameMats, profile: CaptureProfile, stage: Stage): CheckResult
+    val needsOpenCv: Boolean get() = true          // false only for resolution (5.5)
+    val liveEveryNthFrame: Int get() = 1           // 3 for framing and obstruction (5.7)
+    fun appliesTo(profile: CaptureProfile): Boolean = true   // framing: false without a guide
+    /** Must not throw, must not keep references to the mats, must take working mats from the pool. */
+    fun validate(input: ValidationInput, profile: CaptureProfile): CheckResult
 }
+
+/** The stage, the frame's mats (absent when they could not be built) and, post-capture, facts about the file. */
+internal class ValidationInput(val stage: Stage, frame: FrameMats?, val savedImage: SavedImageFacts?)
 ```
+
+As built (milestone 4), the input is a `ValidationInput` rather than a bare `FrameMats`, because the resolution check works on the saved file and must still run when no mats can be built (D15). A validator that hits an OpenCV error returns `ANALYSIS_UNAVAILABLE` instead of throwing: `FAIL` post-capture, `WARNING` live.
+
+`ValidatorRegistry` is an internal object of `:core:quality` (not of `:capture:api`). `CaptureGraph` builds the analyzer with the public `createQualityAnalyzer(initializer: OpenCvInitializer, dispatcher, logger): QualityAnalyzer`; the `OpenCvInitializer` is process-scoped, the analyzer and its `MatPool` are flow-scoped. `OpenCvInitializer.initialize()` returns `OpenCvStatus` (`Loaded`, `Failed`); `:core:opencv` has no domain dependency, so `warmUp` maps `Failed` to `CaptureError.AnalyzerUnavailable`. On Android it calls `OpenCVLoader.initLocal()` on the injected dispatcher, once per process, and catches `LinkageError`.
+
+`MatPool` counts every mat it hands out (`outstanding`); validator tests assert the count is back to zero after each call. Mats up to 2 MB are kept for reuse (at most 16), larger ones are released at once, so post-capture analysis does not leave native memory in the pool.
 
 `FrameMats` lazily provides `gray`, `bgr`, `hsv`, the guide region in pixels (upright), and for the post-capture stage `sharpCrop`. Lazy means a mat is built only if a validator asks for it; live analysis never builds `bgr` or `hsv` unless glare is required.
 
@@ -609,6 +624,12 @@ internal interface QualityValidator {
 
 If OpenCV could not be loaded, `analyzeFile` still runs the resolution and integrity check (5.5), which does not need OpenCV, and reports every OpenCV-based required check (blur, exposure, glare, framing, obstruction) as `FAIL` with reason `ANALYSIS_UNAVAILABLE` and no metrics. The downgrade rule of section 6.1 does not apply to `ANALYSIS_UNAVAILABLE`, so the verdict is `FAIL` and the photo can be accepted only if the profile allows override.
 
+`analyzeLive` without OpenCV reports each required live check as `WARNING` / `ANALYSIS_UNAVAILABLE`, so an unavailable analyzer never disables the shutter (3.4).
+
+`analyzeFile` returns `Failure(FileUnreadable)` only when the file cannot be read or has no parseable JPEG header. A file whose header is readable but whose pixels do not decode gives a report: resolution `FAIL / FILE_CORRUPT`, and every OpenCV-based required check `FAIL / FILE_CORRUPT` with no metrics. Results are listed in registry order: blur, exposure, glare, framing, resolution, obstruction. `LOCATION` is never measured here.
+
+Live colour: the camera's YUV_420_888 is read as full-range JFIF YCbCr (U = Cb, V = Cr); the chroma planes (pixel stride 1 or 2) are upsampled bilinearly and converted with `COLOR_YCrCb2BGR`. This happens only when the glare check asks for `bgr` or `hsv`. The Y plane is wrapped without copying (direct buffers) and rotated upright by `rotationDegrees`.
+
 ### 5.0 Analysis images
 
 | Stage | Image the validators see |
@@ -617,6 +638,8 @@ If OpenCV could not be loaded, `analyzeFile` still runs the resolution and integ
 | Post-capture | The saved JPEG decoded once with subsampling to a normalised long side of about 2000 px. In addition `sharpCrop`: a 1024×1024 crop from the centre of the guide region, decoded at full resolution with a region decoder |
 
 Reasons: a full-resolution `Mat` of a high-megapixel photo, with the intermediate mats the checks need, can exceed the app's memory; and Laplacian variance changes with resolution, so a fixed analysis size keeps thresholds comparable between cameras. The full-resolution crop keeps the blur check sensitive to fine blur that subsampling would hide. The resolution check (5.5) always uses the real file dimensions.
+
+As built: `JpegDecoder` decodes with the largest power-of-two sample size that keeps the long side at or above 2000 px, then scales down to exactly 2000 px with `INTER_AREA`; smaller images are not upscaled. The EXIF orientation is applied to both images, so validators always see upright pixels; the crop is centred on the centre of the guide (of the image without a guide), clamped to the image, and mapped to stored coordinates for the region decoder. Pixel decoding is behind a small `ImageCodec` interface: `BitmapFactory` and `BitmapRegionDecoder` on Android, OpenCV `Imgcodecs` in JVM tests. Dimensions, EXIF orientation and the end-of-image marker are read by `JpegHeaderReader`, pure Kotlin, so they are available without OpenCV. If the region decode fails, blur uses the guide region of the analysis image.
 
 ### 5.1 Blur
 
@@ -630,6 +653,8 @@ Reasons: a full-resolution `Mat` of a high-megapixel photo, with the intermediat
 | Known failure cases | Smooth, plain subjects score low while in focus; heavy noise in low light scores high while blurred |
 
 Laplacian variance depends on resolution, so live and post-capture have separate thresholds.
+
+As built: the variance is taken directly on the `CV_16S` Laplacian (no clipping conversion). `tenengrad` and `dirRatio` use 3×3 Sobel (`CV_32F`) on the same region as `lapVarRegion`; `dirRatio` = Σgx² ÷ Σgy² (capped at 1000). The ratio reflects the scene as well as the blur: a subject with strongly one-directional texture (for example only vertical ribs) can make defocus read as `BLUR_MOTION`. The verdict is unaffected.
 
 ### 5.2 Exposure
 
@@ -664,6 +689,8 @@ Laplacian variance depends on resolution, so live and post-capture have separate
 | Metrics | `coverage`, `borderTouch` (0 or 1), `contourCount` |
 | Known failure cases | Busy backgrounds merge with the subject. Listed in `warningOnlyChecks` by default |
 
+As built: the 0.5 % size filter uses the contour's bounding-box area; `contourCount` is the number of contours that pass it; a contour "overlaps the guide" when its bounding box intersects the guide rectangle; the 2 % margin is taken from the image width for the left and right edges and from the height for the top and bottom. The reasons are checked in the order cut off, too small, too close, and are always `FAIL` (downgraded by the profile when framing is warning-only). Runs on the whole upright frame.
+
 ### 5.5 Resolution and integrity (post-capture only)
 
 | | |
@@ -671,7 +698,9 @@ Laplacian variance depends on resolution, so live and post-capture have separate
 | Input | The saved file |
 | Steps | 1. Decode bounds only. 2. Full decode succeeds. 3. Width and height against `minLongSide`, `minShortSide`. 4. File size against `minFileBytes`. 5. EXIF orientation is a valid value. 6. Dimensions match what the camera reported at bind time (no unexpected downscale) |
 | Verdict | `FILE_CORRUPT`, `LOW_RESOLUTION` or `ORIENTATION_INVALID`; always `FAIL` |
-| Metrics | `width`, `height`, `fileBytes` |
+| Metrics | `width`, `height`, `fileBytes`, `orientation`; `expectedLongSide` when known |
+
+As built, in this order: `FILE_CORRUPT` when the file has no end-of-image marker after its scan data (truncated) or when its pixels did not decode (decoding is only attempted when OpenCV is available); `ORIENTATION_INVALID` when the EXIF orientation is outside 1..8 (an absent tag is valid); `LOW_RESOLUTION` when the long or short side is below the minimum, when the file is smaller than `minFileBytes`, or when the long side is more than 2 % below `expectedCaptureLongSide` (the size the camera reported at bind time, an optional argument of `analyzeFile`).
 
 ### 5.6 Obstruction
 
@@ -686,9 +715,13 @@ Laplacian variance depends on resolution, so live and post-capture have separate
 
 Requiring the group to touch an image edge targets fingers and straps over the lens, which enter from the edge, and avoids flagging a plain subject in the middle.
 
+As built: the grid covers the analysed region (the guide, or the whole frame), so "touches an image edge" means touches the border of that grid; with a guide, the guide's border stands in for the image edge. Groups are 4-connected. Canny uses 80 / 160, the same as framing, on the unblurred grey region.
+
 ### 5.7 Complexity
 
 All live validators are linear in pixel count. At 640×480 the target is under 25 ms for blur and exposure together, and under 60 ms with glare, framing and obstruction. Framing and obstruction run on every third live frame. Post-capture, all checks together should finish within 1 s on the normalised image, leaving room in the 1.5 s verdict budget for decoding and EXIF work.
+
+Framing and obstruction run on frames 0, 3, 6, … of a profile and repeat their last result on the frames in between; a change of profile starts the count again. Measured times are produced by `ValidatorTimingTest` in `:core:quality` (`build/reports/validator-timings.md`). They are desktop-JVM numbers and say nothing yet about a tablet; device numbers come from the debug overlay and the benchmarks.
 
 ## 6. Scoring and profiles
 
@@ -697,6 +730,8 @@ All live validators are linear in pixel count. At 640×480 the target is under 2
 1. For each required check, take its result. If the check is in `warningOnlyChecks` and the result is `FAIL`, downgrade to `WARNING` (except `ANALYSIS_UNAVAILABLE`, section 5).
 2. Overall verdict = the worst result.
 3. Score = 100 minus 40 per `FAIL` and 15 per `WARNING`, floor 0. The score is for reporting and calibration; only the verdict gates acceptance.
+
+A downgraded result keeps its reason; it counts as a `WARNING` in the score. A report without results is `PASS` with score 100. In `:core:quality` the rule is implemented by the internal `QualityScoreCalculator`.
 
 ### 6.2 Profile JSON
 
@@ -751,6 +786,8 @@ All live validators are linear in pixel count. At 640×480 the target is under 2
 }
 ```
 
+The default thresholds above were exercised by the synthetic fixtures of milestone 4 (section 13) and gave the expected verdict on every fixture, live and post-capture, without change. They are still to be calibrated on real devices.
+
 A profile inherits `defaults` and overrides only what it lists. `location.required` is the single source of truth for the location requirement: the loader adds `LOCATION` to `requiredChecks` when it is true and removes it when it is false, so the two can never disagree. All four bundled profiles require location. The loader attaches `deviceOverrides` to every `CaptureProfile` unapplied; `ProfileResolver.resolve(profile, cameraTraits)` applies them last, once the camera reports its capabilities (`CameraState.Ready`), matched on camera characteristics, never on model name. Before that the base profile is used. An unknown `schemaVersion` or a profile that fails validation is rejected with a logged error and the bundled defaults are used.
 
 ## 7. Camera (`:core:camera`)
@@ -792,7 +829,8 @@ stateDiagram-v2
 - `FusedLocationSource`: high-accuracy priority, 1 s interval. Used when Play Services is available.
 - `PlatformLocationSource`: `LocationManager` GPS provider, 1 s, 0 m. Used otherwise. Both sit behind `LocationSource`; the choice is made once in `CaptureGraph`.
 - Mock detection uses the platform's mock flag on the `Location`.
-- `LocationFixPolicy` is a pure function `(fix, policy, now) → LocationStatus`, unit-tested with a fake clock.
+- `LocationFixPolicy` is a pure function `(fix, policy, now) → LocationStatus`, unit-tested with a fake clock. It lives in `:capture:domain` (package `domain.location`), not `:core:location`, because `CaptureEvidenceUseCase` needs it for steps 1 and 5 and the domain cannot depend on an Android module (revision 5). It also owns `allowsCapture`, `blockReason` and the LOCATION `checkResult`.
+- Both sources re-evaluate their status every second, so a fix turns `Stale` on time and permission or location-services changes are noticed without extra callbacks.
 - Capture is enabled for `Ready`, and for `Inaccurate` or `Stale` only when the policy does not fail on them (the result is then a `WARNING`).
 
 ### 8.2 EXIF tags
@@ -962,3 +1000,25 @@ Benchmarks (`:benchmark`): cold start; profile screen to first preview frame; sh
 | Errors | `CcStatusScreen` |
 
 `HintUi`, `GuideStatus`, `LocationChipUi` and `VerdictUi` in section 4 map one-to-one to the component states. `ClearCaptureTheme` is applied once, at the root of the SDK Activity and of the navigation destination, with a `CcAppearance` that `:capture:api` maps from the `Appearance` in the configuration. The SDK always uses this theme and never the host's `MaterialTheme`.
+
+## 16. Implementation notes (revision 5)
+
+Decisions taken while implementing milestones 3 to 8, kept here so the design and the code agree. Each is small and keeps the intent of the sections above.
+
+| # | Area | What the code does | Why |
+|---|---|---|---|
+| 1 | Profile SPI (section 2) | `CaptureProfileProvider.profilesJson(): String` in the schema of section 6.2 | The schema is already the host format and is versioned; a mirrored public model would double the public surface |
+| 2 | `CaptureResult.Accepted` (section 2) | `location` is nullable; `requestId` is echoed | A profile with `location.required = false` has no fix (finding left open in `DESIGN_REVIEW.md`); hosts match results to requests |
+| 3 | Live frames (sections 3.1, 7) | `CameraController` has no `frames` flow; `CameraPreview` hands frames to a `FrameConsumer` on the analysis thread | A frame cannot outlive its `ImageProxy`, which a buffered flow would allow |
+| 4 | `LocationStatus` (section 3) | Adds `NotRequired` | The chip and the gating rule need to tell "not needed" from "acquiring" |
+| 5 | Location rules (section 8.1) | `LocationFixPolicy` is in `:capture:domain` and also owns `allowsCapture`, `blockReason` and the LOCATION `checkResult` | `CaptureEvidenceUseCase` needs them; the domain cannot depend on `:core:location` |
+| 6 | Score rules (section 6.1) | `QualityScoreCalculator` is in `:capture:domain` (`domain.quality`) | Step 7 of section 3.3 recalculates after adding the LOCATION result |
+| 7 | Readiness (section 2) | `ReadinessChecker` and `LaunchDecision` in `:capture:api` (`internal/readiness`) over a read-only `ReadinessEnvironment`; `PermissionChecker` in `:core:location` is not needed | Blockers are an API type; the environment interface makes every blocker unit-testable |
+| 8 | Launch failures (section 2) | Immediate `Failed` results come from `EvidenceCaptureContract.getSynchronousResult`, so no Activity starts | "Without showing a screen" holds literally |
+| 9 | Permission step (section 4.3) | `PermissionReducer` is a pure state machine over `PermissionSnapshot`; the screen passes `shouldShowRequestPermissionRationale` with each result | Every row of `SDK_REQUIREMENTS.md` 5.3 is unit-tested without a device |
+| 10 | Live pipeline (section 3.2) | `LiveAnalysisPipeline` runs `analyzeLive` on the analysis thread and publishes the latest report and timing; `ObserveLiveQualityUseCase` combines it with location and samples to 10 updates a second | The pipeline is the `FrameConsumer` of note 3 and feeds the adaptive step-down and the debug overlay |
+| 11 | Pending captures (section 4.2) | `PendingCaptures` holds pending photos per flow; review loads by ID and returns to the camera if the ID is gone (process death) | The review route carries only the ID |
+| 12 | Accept result (section 3.2) | `AcceptCaptureUseCase` returns `Outcome<AcceptedCapture, AcceptError>` (`NotAllowed`, `Storage`) | Errors are typed values, never exceptions |
+| 13 | Capture record (section 9) | `CaptureEntity.verdict`, `score`, `analysisMillis` and image fields are nullable, and `orientation` is stored | A `FAILED` attempt has no report or image |
+| 14 | GPS time tag (section 8.2) | `GPSTimeStamp` is written and read as `HH:mm:ss` | `ExifInterface` rejects the rational form when setting the tag; found by the instrumented round-trip test |
+| 15 | Hints (section 3.4) | `SUBJECT_TOO_CLOSE` has its own hint after `SUBJECT_TOO_SMALL`; location is re-checked on every guidance update, so losing the fix disables the shutter without waiting for the hint hold | The validator reports it; gating must never lag a lost fix |
