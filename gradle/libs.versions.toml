@@ -19,8 +19,8 @@ detektKotlin = "2.0.21"
 foojay = "1.0.0"
 
 # Libraries
-composeBom = "2026.09.00"
-camerax = "1.6.2"
+composeBom = "2026.11.01"
+camerax = "1.7.0"
 opencv = "4.14.0"
 opencvDesktop = "4.9.0-0"
 hilt = "2.60.1"
